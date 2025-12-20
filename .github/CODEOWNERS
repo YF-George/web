@@ -6,23 +6,23 @@
 # * @owner
 
 # 文件與組態
-/.github/  @owner
-CONTRIBUTING.md @owner
-README.md @owner
+/.github/  @YF-George
+CONTRIBUTING.md @YF-George
+README.md @YF-George
 
 # 核心應用邏輯
-/src/routes/  @owner
-/src/lib/  @owner
+/src/routes/  @YF-George
+/src/lib/  @YF-George
 
 # 工具鏈與組態（需要特別審核）
-/vite.config.ts  @owner
-/svelte.config.js  @owner
-/tsconfig.json  @owner
-/eslint.config.js  @owner
-package.json  @owner
-pnpm-lock.yaml  @owner
+/vite.config.ts  @YF-George
+/svelte.config.js  @YF-George
+/tsconfig.json  @YF-George
+/eslint.config.js  @YF-George
+package.json  @YF-George
+pnpm-lock.yaml  @YF-George
 
 # 注意：
-# - 將 @owner 改為實際的 GitHub 用戶名或團隊（例如 @team/backend）
-# - 可針對不同目錄/檔案指派不同的審核者
+# - 已設定 @YF-George 為預設審核者
+# - 可針對不同目錄/檔案新增其他審核者
 # - 若無人指派，任何人都可審核
