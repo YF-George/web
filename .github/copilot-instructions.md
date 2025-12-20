@@ -1,4 +1,4 @@
-# AI Coding Agent 指引 — SvelteKit 網站專案
+# 開發指引 — SvelteKit 網站專案
 
 本專案為 SvelteKit v2（Svelte v5 runes）、Vite v7、Tailwind CSS v4、TypeScript strict。請優先遵循現有結構與慣例，避免自行引入不必要的工具鏈或設定檔。
 

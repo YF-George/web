@@ -38,7 +38,7 @@
 - `refactor` — 重構（無功能變更）
 - `perf` — 效能改進
 - `test` — 測試相關
-- `chore` — 工具鏈/依賴/自動化
+- `chore` — 工具鏈/依賴/設定更新
 - `revert` — 撤銷前次 commit
 
 **Scope（可選）：** 受影響的部分
@@ -57,7 +57,7 @@
 feat(routes): 新增 /about 頁面
 fix(components): 修正 Button 元件的無障礙標籤
 chore(deps): 升級 SvelteKit 至 v2.50
-docs: 更新 README 安裝指引
+docs: 更新 README 安裝說明
 ```
 
 **本文與 Footer（可選）：** 複雜變更時補充
@@ -145,7 +145,7 @@ Breaking change: 移除舊 /login 路由
 - **套件審查：** 新增相依前確認維護狀態、月下載量、已知漏洞。
 - **版本策略：** 通常遵循 npm 預設（適度升級安全補丁）；主版本升級需討論。
 - **敏感資料：** 不得提交密鑰、API Token、密碼；使用環境變數（`.env.local` 已忽略）。
-- **鎖定檔：** `pnpm-lock.yaml` 務必提交，確保重現性；勿手動編輯。
+- **鎖定檔：** `pnpm-lock.yaml` 務必提交，讓大家裝的套件版本一致；勿手動編輯。
 
 ## 環境變數與設定管理
 
@@ -163,7 +163,7 @@ Breaking change: 移除舊 /login 路由
 - **載入方式：** SvelteKit 自動於啟動時載入 `.env.local` 與 `.env`；不需手動 dotenv。
 - **部署：** 生產環境於平台（Vercel、Cloudflare 等）設定環境變數，勿提交。
 
-## 效能優化指南
+## 效能考量
 
 - **初次載入：** 頻繁檢查 bundle 大小（`pnpm run build` 打印信息）；合理分割路由與元件。
 - **運行時效能：** 避免緊密迴圈中反覆計算；使用 SvelteKit 快取與預加載（`data-sveltekit-preload-data`）。
@@ -219,12 +219,12 @@ Breaking change: 移除舊 /login 路由
 - 大型功能或架構變更，請先開議題或與維護者討論。
 - 遇到卡點，歡迎於 PR 或議題提問；提供背景與期望結果。
 
-## CI/CD 與自動化檢驗
+## CI/CD 與檢驗
 
 - **GitHub Actions 工作流：** `.github/workflows/ci.yml` 自動於每個 PR 執行下列檢查：
   - 安裝相依：`pnpm install`
   - 格式檢查：`pnpm run format --check`（或 `pnpm run lint`）
   - 型別檢查：`pnpm run check`（svelte-check）
   - 建置驗證：`pnpm run build`
-- **本地檢驗：** 推送前自行執行上述命令，確保不會阻擋 CI。
+- **本地檢驗：** 推送前自行執行上述命令，減少 CI 出問題的機會。
 - **分支保護：** `main` 分支需 CI 通過始可合併；避免繞過檢查。

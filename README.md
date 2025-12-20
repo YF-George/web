@@ -43,7 +43,7 @@ pnpm run check:watch
 - 格式化暫存檔（Prettier）
 - 自動修復 lint 問題（ESLint）
 
-若檢驗失敗，commit 被阻止；修復後重試。避免不必要的 GitHub Actions 失敗，提升開發效率。
+若檢驗失敗，commit 被阻止；修復後重試。可以少走幾趟 GitHub Actions 這關。
 
 ## 專案慣例
 
