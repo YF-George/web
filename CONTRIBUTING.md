@@ -5,8 +5,16 @@
 ## 開發環境與基本流程
 
 - 套件管理：建議使用 `pnpm`。
-- 常用指令：`pnpm run prepare`（型別同步）、`pnpm run dev`、`pnpm run build`、`pnpm run preview`、`pnpm run lint`、`pnpm run format`、`pnpm run check`。
+- 常用指令：`pnpm run prepare`（型別同步 + Husky 鉤子）、`pnpm run dev`、`pnpm run build`、`pnpm run preview`、`pnpm run lint`、`pnpm run format`、`pnpm run check`。
 - 變更 TS/Svelte 設定後，請執行 `pnpm run prepare` 更新 `.svelte-kit` 型別。
+
+## 本地 Git 鉤子（Husky）
+
+- **Pre-commit 自動檢驗：** 執行 `git commit` 時，Husky 會自動執行 `lint-staged`，檢查並修復暫存檔案：
+  - 格式化：Prettier 重寫 `.{js,ts,svelte,json,css,md}` 檔
+  - Lint 修復：ESLint 自動修復 `.{js,ts,svelte}` 檔
+- **若檢驗失敗：** commit 被阻止，需修復後重試；修復後自動重新暫存並 commit
+- **跳過鉤子（不建議）：** `git commit --no-verify` 繞過檢驗（僅用於緊急情況）
 
 ## 分支與 Commit 規範
 
