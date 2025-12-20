@@ -18,9 +18,62 @@
 
 ## 分支與 Commit 規範
 
-- 分支命名：`feature/<短描述>`、`fix/<短描述>`、`chore/<短描述>`、`docs/<短描述>`。
-- Commit 規範（Conventional Commits）：
-  - `feat: 新增首頁 hero 區塊`、`fix: 修正 favicon 載入路徑`、`chore: 調整 eslint 規則`、`docs: 更新 README 範例`。
+### 分支命名
+
+- `feature/<短描述>`（新功能）
+- `fix/<短描述>`（修復問題）
+- `chore/<短描述>`（工具鏈/依賴）
+- `docs/<短描述>`（文件）
+
+### Commit Message 規範（Conventional Commits）
+
+**格式：** `<type>(<scope>): <subject>`
+
+**Type 類型：**
+
+- `feat` — 新功能
+- `fix` — 修復問題
+- `docs` — 文件更新
+- `style` — 代碼風格（無邏輯變更）
+- `refactor` — 重構（無功能變更）
+- `perf` — 效能改進
+- `test` — 測試相關
+- `chore` — 工具鏈/依賴/自動化
+- `revert` — 撤銷前次 commit
+
+**Scope（可選）：** 受影響的部分
+
+- `routes`、`components`、`lib`、`styles` 等
+
+**Subject（必須）：**
+
+- 祈使句、小寫開頭
+- 不超過 100 字元
+- 無句號結尾
+
+**範例：**
+
+```
+feat(routes): 新增 /about 頁面
+fix(components): 修正 Button 元件的無障礙標籤
+chore(deps): 升級 SvelteKit 至 v2.50
+docs: 更新 README 安裝指引
+```
+
+**本文與 Footer（可選）：** 複雜變更時補充
+
+```
+feat(auth): 實裝 OAuth2 登入流程
+
+- 整合 GitHub OAuth provider
+- 新增 /auth/callback 路由
+- 儲存 access token 至 secure cookie
+
+Closes #456
+Breaking change: 移除舊 /login 路由
+```
+
+**自動檢驗：** commitlint 會在 commit 時檢驗格式，格式錯誤時阻止 commit。
 
 ## Svelte 5（runes）慣例
 

@@ -36,6 +36,15 @@ pnpm run check     # svelte-check（使用專案 tsconfig）
 pnpm run check:watch
 ```
 
+## 本地自動檢驗（Husky）
+
+執行 `git commit` 時，Husky 會自動執行 `lint-staged`：
+
+- 格式化暫存檔（Prettier）
+- 自動修復 lint 問題（ESLint）
+
+若檢驗失敗，commit 被阻止；修復後重試。避免不必要的 GitHub Actions 失敗，提升開發效率。
+
 ## 專案慣例
 
 - **Svelte 5 runes：** 使用 `$props()`，並在 `+layout.svelte` 用 `{@render children()}` 渲染子內容。

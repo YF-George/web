@@ -20,11 +20,12 @@
 
 ## 開發指令（以 pnpm 為主）
 
-- 安裝：`pnpm install`
-- 產生型別：`pnpm run prepare`（`svelte-kit sync`；改 TS/Svelte 設定後要跑）
+- 安裝：`pnpm install`（自動安裝 Husky 鉤子）
+- 產生型別：`pnpm run prepare`（`svelte-kit sync` + Husky 初始化；改 TS/Svelte 設定後要跑）
 - 開發：`pnpm run dev`（需要自動開瀏覽器可加 `-- --open`）
 - 建置/預覽：`pnpm run build`、`pnpm run preview`
 - 檢查：`pnpm run lint`、`pnpm run format`、`pnpm run check`（svelte-check）
+- **本地 pre-commit 檢驗：** 執行 `git commit` 時，Husky 自動執行 lint-staged（格式化 + ESLint 修復），失敗則阻止 commit
 
 ## 設定與整合點
 
