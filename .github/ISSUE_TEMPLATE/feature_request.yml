@@ -1,0 +1,55 @@
+name: ✨ Feature Request
+description: 建議新功能或改進
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        歡迎分享想法！請清楚描述用途與預期效果。
+
+  - type: input
+    id: title
+    attributes:
+      label: 摘要
+      placeholder: 簡述功能需求（例如：支援系統偏好的深色模式自動切換）
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 問題或動機
+      description: 這個功能解決什麼問題？為什麼需要它？
+      placeholder: |
+        目前使用者必須手動切換深色/淺色模式，但許多應用會自動遵循系統設定。
+        這造成使用者困擾，特別是夜間使用時。
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 建議方案
+      description: 你想像的解決方案或實現方式
+      placeholder: |
+        1. 偵測 `prefers-color-scheme` 媒體查詢
+        2. 預設遵循系統設定
+        3. 提供手動切換選項於設定頁面
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案（可選）
+      description: 有其他可行方案嗎？
+      placeholder: 例如：改用不同的 UI 組件、採用第三方套件等
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 額外背景（可選）
+      description: 相關議題、設計稿、參考資料等連結
+      placeholder: |
+        - 設計稿：https://...
+        - 相似專案範例：https://...

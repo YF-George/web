@@ -1,0 +1,82 @@
+name: 🐛 Bug Report
+description: 報告問題或不預期的行為
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感謝你回報問題！請盡可能詳細描述，幫助我們快速定位與修復。
+
+  - type: input
+    id: title
+    attributes:
+      label: 摘要
+      placeholder: 簡短描述問題（例如：Favicon 在深色模式下不顯示）
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 問題描述
+      description: 詳細說明遇到的問題、預期行為與實際行為
+      placeholder: |
+        **預期行為：**
+        頁面應在 3 秒內載入完成
+
+        **實際行為：**
+        頁面需要 10+ 秒才能呈現
+
+        **重現步驟：**
+        1. 開啟首頁
+        2. 切換到深色模式
+        3. 刷新頁面
+    validations:
+      required: true
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: 瀏覽器
+      options:
+        - Chrome
+        - Firefox
+        - Safari
+        - Edge
+        - 其他
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 作業系統
+      placeholder: 例如：Windows 11、macOS Sonoma、Ubuntu 22.04
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: 截圖或影片（可選）
+      description: 若有視覺問題，請附上截圖或錄製短影片
+      placeholder: 可貼上圖片連結或上傳檔案
+
+  - type: textarea
+    id: console_error
+    attributes:
+      label: 瀏覽器主控台錯誤訊息（可選）
+      description: 若有 JavaScript 錯誤，請貼上完整堆疊
+      placeholder: |
+        ```
+        TypeError: Cannot read properties of undefined (reading 'map')
+          at ...
+        ```
+      render: javascript
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 額外背景（可選）
+      description: 任何其他有助於理解問題的資訊
+      placeholder: 例如：此問題在特定網路速度下發生、影響特定使用者族群等

@@ -1,0 +1,28 @@
+# 此檔案指定此專案各部分的代碼擁有者（CODEOWNERS）。
+# GitHub 會自動指派這些人員審核相關 PR。
+# 詳見 https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 全域預設（所有檔案需要任何人審核）
+# * @owner
+
+# 文件與組態
+/.github/  @owner
+CONTRIBUTING.md @owner
+README.md @owner
+
+# 核心應用邏輯
+/src/routes/  @owner
+/src/lib/  @owner
+
+# 工具鏈與組態（需要特別審核）
+/vite.config.ts  @owner
+/svelte.config.js  @owner
+/tsconfig.json  @owner
+/eslint.config.js  @owner
+package.json  @owner
+pnpm-lock.yaml  @owner
+
+# 注意：
+# - 將 @owner 改為實際的 GitHub 用戶名或團隊（例如 @team/backend）
+# - 可針對不同目錄/檔案指派不同的審核者
+# - 若無人指派，任何人都可審核

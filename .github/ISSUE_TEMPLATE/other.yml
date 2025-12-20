@@ -1,0 +1,24 @@
+name: 📋 Other Issue
+description: 其他類型的報告或討論
+labels: ['question']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        使用此範本報告不符合 Bug 或 Feature 的其他議題。
+
+  - type: input
+    id: title
+    attributes:
+      label: 標題
+      placeholder: 例如：如何使用環境變數？、效能最佳化建議
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 詳細說明
+      placeholder: 盡可能詳細描述你的想法或問題
+    validations:
+      required: true
