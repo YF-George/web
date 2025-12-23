@@ -4,7 +4,7 @@
 
 	onMount(async () => {
 		// Auto-redirect to the single fixed form
-		await goto('/forms/main', { noscroll: true });
+		await goto('/forms/main', { noScroll: true });
 	});
 </script>
 

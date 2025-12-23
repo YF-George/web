@@ -204,7 +204,7 @@
 							.map(() => ({ value: '' }))
 					);
 
-				const userSet = new (globalThis as any).SvelteSet<string>();
+				const userSet = new Set<string>();
 
 				edits.forEach((edit) => {
 					if (
@@ -575,7 +575,7 @@
 		<div class="header-content">
 			<h1>📊 匿名協作試算表</h1>
 			<div class="header-actions">
-				<a sveltekit:prefetch href="/history" class="btn-history">📜 編輯記錄</a>
+				<a data-sveltekit-preload-data href="/history" class="btn-history">📜 編輯記錄</a>
 				<button
 					class="btn-refresh"
 					onclick={loadHistory}

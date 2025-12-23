@@ -91,7 +91,7 @@
 		<div class="header-top">
 			<h1>📜 編輯記錄</h1>
 			<div class="header-actions">
-				<a sveltekit:prefetch href="/forms/main" class="btn-back">← 返回試算表</a>
+				<a data-sveltekit-preload-data href="/forms/main" class="btn-back">← 返回試算表</a>
 				<button class="btn-refresh" onclick={loadHistory} disabled={loading}>
 					{loading ? '⏳' : '🔄'}
 				</button>
