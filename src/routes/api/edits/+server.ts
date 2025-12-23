@@ -1,11 +1,7 @@
 import type { RequestHandler } from './$types';
-import fs from 'fs/promises';
-import path from 'path';
 import crypto from 'crypto';
 import { sanitizeDisplayName, validateDisplayName } from '$lib/utils/name';
-
-const DATA_DIR = path.resolve('data');
-const FILE = path.join(DATA_DIR, 'edits.json');
+import { kv } from '@vercel/kv';
 
 interface EditAction {
 	type: string;
@@ -35,13 +31,19 @@ interface Edit {
 	created_at: string;
 }
 
-async function ensureFile() {
-	try {
-		await fs.mkdir(DATA_DIR, { recursive: true });
-		await fs.access(FILE);
-	} catch {
-		await fs.writeFile(FILE, '[]', 'utf8');
-	}
+// Get all edits for a form from KV store
+async function getEdits(formId: string): Promise<Edit[]> {
+	const key = `form:${formId}:edits`;
+	const edits = await kv.get<Edit[]>(key);
+	return edits || [];
+}
+
+// Add edit to KV store
+async function addEdit(edit: Edit): Promise<void> {
+	const key = `form:${edit.formId}:edits`;
+	const edits = await getEdits(edit.formId);
+	edits.push(edit);
+	await kv.set(key, edits);
 }
 
 function serverPseudonymHash(pseudonym: string) {
@@ -67,13 +69,10 @@ export const GET: RequestHandler = async ({ url }) => {
 		return new Response(JSON.stringify({ error: 'missing formId' }), { status: 400 });
 	}
 
-	await ensureFile();
-	const raw = await fs.readFile(FILE, 'utf8');
-	const all: Edit[] = JSON.parse(raw || '[]');
-	const filtered = all.filter((e) => e.formId === formId);
+	const all = await getEdits(formId);
 
 	// Return without pseudonym_hash (privacy)
-	const safe = filtered.map(({ id, formId, displayName, action, created_at }) => ({
+	const safe = all.map(({ id, formId, displayName, action, created_at }) => ({
 		id,
 		formId,
 		displayName,
@@ -158,11 +157,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		created_at: new Date().toISOString()
 	};
 
-	await ensureFile();
-	const raw = await fs.readFile(FILE, 'utf8');
-	const arr: Edit[] = JSON.parse(raw || '[]');
-	arr.push(entry);
-	await fs.writeFile(FILE, JSON.stringify(arr, null, 2), 'utf8');
+	await addEdit(entry);
 
 	return new Response(JSON.stringify({ ok: true, id: entry.id }), {
 		status: 201,

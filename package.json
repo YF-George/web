@@ -43,5 +43,8 @@
 	"lint-staged": {
 		"*.{js,ts,svelte,json,css,md}": "prettier --write",
 		"*.{js,ts,svelte}": "eslint --fix"
+	},
+	"dependencies": {
+		"@vercel/kv": "^3.0.0"
 	}
 }
