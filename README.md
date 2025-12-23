@@ -2,6 +2,38 @@
 
 本專案使用 SvelteKit v2、Svelte v5（runes）、Vite v7、Tailwind CSS v4，以及 TypeScript（strict）。
 
+## 🆕 匿名協作表單系統
+
+本專案現已整合**匿名協作表單系統**，讓多人能在不洩露真實身份的情況下共同編輯單一表單。
+
+### 快速啟動
+
+```powershell
+# 1. 設定環境變數（必要）
+$env:PSEUDONYM_SALT = 'your-secure-random-salt-here'
+
+# 2. 安裝與啟動
+pnpm install
+pnpm run dev
+```
+
+訪問 http://localhost:5173/ 會自動導向固定的協作表單。
+
+### 主要特色
+
+- ✅ **完全匿名**：無需註冊或登入
+- ✅ **跨裝置同步**：使用相同密語在不同裝置維持同一身份
+- ✅ **隱私保護**：PBKDF2 + HMAC 雙重加密
+- ✅ **即時協作**：自動重新整理編輯歷史
+- ✅ **速率限制**：防止濫用
+- ✅ **單一表單**：所有人共同編輯同一份內容
+
+### 詳細文件
+
+請參閱 [`README.forms.md`](./README.forms.md) 取得完整使用說明、API 文件、部署指南與安全性說明。
+
+---
+
 ## 技術棧與關鍵檔案
 
 - **SvelteKit v2 + Svelte v5：** runes 寫法元件
