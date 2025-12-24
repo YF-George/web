@@ -16,6 +16,21 @@ pnpm run dev
 
 訪問 http://localhost:5173/ 會自動導向團隊管理頁面。
 
+### 線上訪問
+
+本專案已部署到 Vercel。若無自訂域名，可透過 Vercel 自動分配的 URL 訪問：
+
+```
+https://web-<random-id>.vercel.app/
+```
+
+**查看部署 URL 的方式：**
+
+1. 登入 [Vercel 控制台](https://vercel.com/dashboard)
+2. 選擇 `web` 專案
+3. 在「Deployments」標籤查看最新部署的 URL
+4. 或在 GitHub 的 commit 紀錄中點擊 Vercel bot 的 deployment 連結
+
 ### 主要特色
 
 - ✅ **登入驗證**：支援一般玩家與管理員兩種身份
