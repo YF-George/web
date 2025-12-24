@@ -935,7 +935,7 @@
 						</label>
 					</div>
 					<div class="group-grid">
-						{#each getActiveGroup().members as member, index (index)}
+						{#each getActiveGroup().members as member, index (`${activeGroupId}-${index}`)}
 							<div class="member-card">
 								<div class="member-header">
 									<span class="member-number">{index + 1}</span>
