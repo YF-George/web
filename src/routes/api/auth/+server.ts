@@ -6,7 +6,8 @@ import type { RequestHandler } from './$types';
 const ADMIN_WHITELIST: Record<string, string> = {
 	千羽夜: '3025782247',
 	花豆豆: 'jerry1012',
-	樂奈: '3034520835'
+	樂奈: '3034520835',
+	花瑚離: '033069718'
 };
 
 export const POST: RequestHandler = async ({ request }) => {

@@ -71,11 +71,20 @@
 
 	let activeGroupId = '1';
 
-	// 資料持久化函數
+	// 資料持久化：以帳號（gameId+uid）為 key 隔離資料
+	const getStorageKey = () => {
+		const trimmedGameId = gameId.trim();
+		const trimmedUid = uid.trim();
+		if (!trimmedGameId) return null;
+		return trimmedUid ? `teams-${trimmedGameId}-${trimmedUid}` : `teams-${trimmedGameId}`;
+	};
+
 	function saveGroupsToLocalStorage() {
+		const key = getStorageKey();
+		if (!key) return;
 		try {
 			localStorage.setItem(
-				`teams-${gameId}`,
+				key,
 				JSON.stringify(
 					groups.map((g) => ({
 						...g,
@@ -94,8 +103,10 @@
 	}
 
 	function loadGroupsFromLocalStorage() {
+		const key = getStorageKey();
+		if (!key) return;
 		try {
-			const saved = localStorage.getItem(`teams-${gameId}`);
+			const saved = localStorage.getItem(key);
 			if (saved) {
 				groups = JSON.parse(saved).map((g: LocalGroup) => ({
 					...g,
@@ -175,10 +186,12 @@
 		isLoading = true;
 
 		try {
+			const trimmedGameId = gameId.trim();
+			const trimmedUid = uid.trim();
 			const response = await fetch('/api/auth', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ gameId: gameId.trim(), uid: uid.trim() })
+				body: JSON.stringify({ gameId: trimmedGameId, uid: trimmedUid })
 			});
 
 			const result = await response.json();
@@ -186,6 +199,8 @@
 			if (result.success) {
 				isLoggedIn = true;
 				isAdmin = !!result.isAdmin;
+				gameId = trimmedGameId; // 正規化帳號，避免前後空白造成 key 不一致
+				uid = trimmedUid;
 				// 登入後載入已儲存的資料
 				loadGroupsFromLocalStorage();
 				status = '✅ 登入成功';
