@@ -71,6 +71,46 @@
 
 	let activeGroupId = '1';
 
+	// 資料持久化函數
+	function saveGroupsToLocalStorage() {
+		try {
+			localStorage.setItem(
+				`teams-${gameId}`,
+				JSON.stringify(
+					groups.map((g) => ({
+						...g,
+						changeLog:
+							g.changeLog?.map((log) => ({
+								...log,
+								timestamp:
+									log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
+							})) || []
+					}))
+				)
+			);
+		} catch (e) {
+			console.warn('無法儲存資料到 localStorage:', e);
+		}
+	}
+
+	function loadGroupsFromLocalStorage() {
+		try {
+			const saved = localStorage.getItem(`teams-${gameId}`);
+			if (saved) {
+				groups = JSON.parse(saved).map((g: LocalGroup) => ({
+					...g,
+					changeLog:
+						g.changeLog?.map((log: ChangeLog) => ({
+							...log,
+							timestamp: new Date(log.timestamp)
+						})) || []
+				}));
+			}
+		} catch (e) {
+			console.warn('無法從 localStorage 載入資料:', e);
+		}
+	}
+
 	function commitPendingUpdate(key: string) {
 		const pending = pendingUpdates.get(key);
 		if (!pending) return;
@@ -122,6 +162,7 @@
 
 		groups = groups; // Trigger reactivity
 		pendingUpdates.delete(key);
+		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	async function handleLogin() {
@@ -145,6 +186,10 @@
 			if (result.success) {
 				isLoggedIn = true;
 				isAdmin = !!result.isAdmin;
+				// 登入後載入已儲存的資料
+				loadGroupsFromLocalStorage();
+				status = '✅ 登入成功';
+				setTimeout(() => (status = ''), 2000);
 			} else {
 				status = `❌ ${result.error || '登入失敗'}`;
 				setTimeout(() => (status = ''), 3000);
@@ -224,6 +269,7 @@
 		];
 		activeGroupId = newId;
 		renumberGroups();
+		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	function deleteGroup(groupId: string) {
@@ -253,6 +299,7 @@
 		groups = groups.filter((g) => g.id !== groupId);
 		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || '1';
 		renumberGroups();
+		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	// 重新編號所有團隊，從 1 開始
@@ -363,6 +410,7 @@
 			};
 
 			pendingUpdates.set(key, pending);
+			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
 
@@ -386,6 +434,7 @@
 			};
 
 			pendingUpdates.set(key, pending);
+			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
 

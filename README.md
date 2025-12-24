@@ -2,66 +2,35 @@
 
 本專案使用 SvelteKit v2、Svelte v5（runes）、Vite v7、Tailwind CSS v4，以及 TypeScript（strict）。
 
-## 🆕 團隊管理系統
+## 🆕 匿名協作表單系統
 
-本專案為**遊戲團隊管理系統**，支援多團隊管理與成員資訊追蹤。
+本專案現已整合**匿名協作表單系統**，讓多人能在不洩露真實身份的情況下共同編輯單一表單。
 
 ### 快速啟動
 
 ```powershell
-# 安裝與啟動
+# 1. 設定環境變數（必要）
+$env:PSEUDONYM_SALT = 'your-secure-random-salt-here'
+
+# 2. 安裝與啟動
 pnpm install
 pnpm run dev
 ```
 
-訪問 http://localhost:5173/ 會自動導向團隊管理頁面。
-
-### 線上訪問
-
-本專案已部署到 Vercel。
-
-**已連結域名：**
-
-```
-https://example.com/
-```
-
-**替代 URL（Vercel 自動分配）：**
-
-```
-https://web-<random-id>.vercel.app/
-```
-
-**查看部署詳情的方式：**
-
-1. 登入 [Vercel 控制台](https://vercel.com/dashboard)
-2. 選擇 `web` 專案
-3. 在「Domains」標籤檢視已連結的域名
-4. 在「Deployments」標籤查看最新部署的 URL
-5. 或在 GitHub 的 commit 紀錄中點擊 Vercel bot 的 deployment 連結
-
-**添加/更新域名的步驟：**
-
-1. 前往 Vercel 控制台 → 選擇專案 → 進入「Settings」
-2. 點擊「Domains」標籤
-3. 點擊「Add Domain」
-4. 輸入域名（例如：`example.com` 或 `www.example.com`）
-5. 按照 Vercel 提示配置 DNS 記錄
-6. 域名驗證成功後，會自動別名到最新部署
+訪問 http://localhost:5173/ 會自動導向固定的協作表單。
 
 ### 主要特色
 
-- ✅ **登入驗證**：支援一般玩家與管理員兩種身份
-- ✅ **多團隊管理**：管理員可建立、刪除團隊（自動重新編號）
-- ✅ **10 人團隊表單**：職能、隊長、幫打、玩家 ID、裝分
-- ✅ **團隊級別資訊**：發車日期/時間、副本名稱、等級、裝分限制、內容類型
-- ✅ **更改紀錄追蹤**：自動記錄所有團隊變動（最多 100 筆）
-- ✅ **HTML5 日期/時間選擇器**：快速輸入並顯示星期幾
-- ✅ **電路板風格背景**：現代化視覺設計
+- ✅ **完全匿名**：無需註冊或登入
+- ✅ **跨裝置同步**：使用相同密語在不同裝置維持同一身份
+- ✅ **隱私保護**：PBKDF2 + HMAC 雙重加密
+- ✅ **即時協作**：自動重新整理編輯歷史
+- ✅ **速率限制**：防止濫用
+- ✅ **單一表單**：所有人共同編輯同一份內容
 
 ### 詳細文件
 
-請參閱 [`README.forms.md`](./README.forms.md) 取得完整使用說明、功能介紹與技術文件。
+請參閱 [`README.forms.md`](./README.forms.md) 取得完整使用說明、API 文件、部署指南與安全性說明。
 
 ---
 
