@@ -6,4 +6,10 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+
+<div class="circuit-wrapper">
+	<div class="circuit-background"></div>
+	<div class="circuit-content">
+		{@render children()}
+	</div>
+</div>
