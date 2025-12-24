@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
-import { createClient } from '@liveblocks/node';
+import { Liveblocks } from '@liveblocks/node';
 
 const secret = process.env.LIVEBLOCKS_SECRET_KEY;
-const liveblocks = secret ? createClient({ secret }) : null;
+const liveblocks = secret ? new Liveblocks({ secret }) : null;
 
 export const POST: RequestHandler = async ({ request }) => {
 	if (!liveblocks) {
@@ -26,14 +26,13 @@ export const POST: RequestHandler = async ({ request }) => {
 		});
 	}
 
-	// 建立 Session 並授權進入房間（預設 writer 權限）
-	const session = await liveblocks.createSession({
-		userId: userId || 'anonymous',
-		userInfo: userInfo || {}
+	// 準備 Session 並授權進入房間
+	const session = liveblocks.prepareSession(userId || 'anonymous', {
+		userInfo: (userInfo || {}) as Record<string, string | number | boolean>
 	});
-	const authResponse = await session.authorize([{ roomId, role: 'writer' }]);
+	session.allow(roomId, session.FULL_ACCESS);
 
-	return new Response(JSON.stringify(authResponse), {
+	return new Response(JSON.stringify(await session.authorize()), {
 		status: 200,
 		headers: { 'content-type': 'application/json' }
 	});
