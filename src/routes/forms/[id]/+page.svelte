@@ -585,6 +585,9 @@
 					commitPendingUpdate(key);
 				}
 			}
+
+			// 儲存到本地，觸發響應性更新
+			saveGroupsToLocalStorage();
 			return;
 		}
 
@@ -616,6 +619,9 @@
 			pendingUpdates.set(key, pending);
 			commitPendingUpdate(key);
 		}
+
+		// 儲存到本地，觸發響應性更新
+		saveGroupsToLocalStorage();
 	}
 
 	function getActiveGroup() {
