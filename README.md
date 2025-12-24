@@ -18,18 +18,36 @@ pnpm run dev
 
 ### 線上訪問
 
-本專案已部署到 Vercel。若無自訂域名，可透過 Vercel 自動分配的 URL 訪問：
+本專案已部署到 Vercel。
+
+**已連結域名：**
+
+```
+https://example.com/
+```
+
+**替代 URL（Vercel 自動分配）：**
 
 ```
 https://web-<random-id>.vercel.app/
 ```
 
-**查看部署 URL 的方式：**
+**查看部署詳情的方式：**
 
 1. 登入 [Vercel 控制台](https://vercel.com/dashboard)
 2. 選擇 `web` 專案
-3. 在「Deployments」標籤查看最新部署的 URL
-4. 或在 GitHub 的 commit 紀錄中點擊 Vercel bot 的 deployment 連結
+3. 在「Domains」標籤檢視已連結的域名
+4. 在「Deployments」標籤查看最新部署的 URL
+5. 或在 GitHub 的 commit 紀錄中點擊 Vercel bot 的 deployment 連結
+
+**添加/更新域名的步驟：**
+
+1. 前往 Vercel 控制台 → 選擇專案 → 進入「Settings」
+2. 點擊「Domains」標籤
+3. 點擊「Add Domain」
+4. 輸入域名（例如：`example.com` 或 `www.example.com`）
+5. 按照 Vercel 提示配置 DNS 記錄
+6. 域名驗證成功後，會自動別名到最新部署
 
 ### 主要特色
 
