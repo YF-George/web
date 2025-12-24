@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv';
 import Ably from 'ably';
+import { Liveblocks } from '@liveblocks/node';
 import type { RequestHandler } from './$types';
 
 interface ChangeLog {
@@ -53,14 +54,26 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	await kv.set(keyFor(formId), groups);
 
-	// 發布即時更新（若已設定 ABLY_API_KEY）
-	const apiKey = process.env.ABLY_API_KEY;
-	if (apiKey) {
+	// 發布即時更新到 Ably（若已設定 ABLY_API_KEY）
+	const ablyKey = process.env.ABLY_API_KEY;
+	if (ablyKey) {
 		try {
-			const rest = new Ably.Rest({ key: apiKey });
+			const rest = new Ably.Rest({ key: ablyKey });
 			await rest.channels.get(keyFor(formId)).publish('groups', groups);
 		} catch (err) {
 			console.warn('Ably 發布失敗:', err);
+		}
+	}
+
+	// 發布即時更新到 Liveblocks（若已設定 LIVEBLOCKS_SECRET_KEY）
+	const lbKey = process.env.LIVEBLOCKS_SECRET_KEY;
+	if (lbKey) {
+		try {
+			const liveblocks = new Liveblocks({ secret: lbKey });
+			const room = liveblocks.getRoom(keyFor(formId));
+			await room.broadcastEvent({ type: 'groups', data: groups });
+		} catch (err) {
+			console.warn('Liveblocks 發佈失敗:', err);
 		}
 	}
 

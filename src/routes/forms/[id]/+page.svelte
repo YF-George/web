@@ -65,15 +65,6 @@
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
 
-	// 切換頁籤時重新載入資料
-	async function handleTabChange(newTab: 'forms' | 'history') {
-		activeTab = newTab;
-		if (isLoggedIn) {
-			// 點擊任何頁籤時，都從伺服器重新載入最新資料
-			await loadGroupsFromServer();
-		}
-	}
-
 	let groups: LocalGroup[] = [
 		{
 			id: '1',
@@ -771,7 +762,7 @@
 						<button
 							class="nav-link"
 							class:active={activeTab === 'forms'}
-							onclick={() => handleTabChange('forms')}
+							onclick={() => (activeTab = 'forms')}
 						>
 							填寫表單
 						</button>
@@ -780,7 +771,7 @@
 						<button
 							class="nav-link"
 							class:active={activeTab === 'history'}
-							onclick={() => handleTabChange('history')}
+							onclick={() => (activeTab = 'history')}
 						>
 							更改紀錄
 						</button>
