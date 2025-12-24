@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { page } from '$app/stores';
 	import { SvelteMap } from 'svelte/reactivity';
 
 	interface GroupMember {
@@ -49,6 +50,8 @@
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
+	let formId = '';
+	$: formId = $page.params.id;
 
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -71,13 +74,32 @@
 
 	let activeGroupId = '1';
 
-	// 資料持久化：以帳號（gameId+uid）為 key 隔離資料
-	const getStorageKey = () => {
-		const trimmedGameId = gameId.trim();
-		const trimmedUid = uid.trim();
-		if (!trimmedGameId) return null;
-		return trimmedUid ? `teams-${trimmedGameId}-${trimmedUid}` : `teams-${trimmedGameId}`;
-	};
+	// 資料持久化：以表單路由 id 為 key（所有使用者共享）
+	const getStorageKey = () => (formId ? `teams-${formId}` : null);
+
+	async function saveGroupsToServer() {
+		if (!formId) return;
+		try {
+			await fetch('/api/groups', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					formId,
+					groups: groups.map((g) => ({
+						...g,
+						changeLog:
+							g.changeLog?.map((log) => ({
+								...log,
+								timestamp:
+									log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
+							})) || []
+					}))
+				})
+			});
+		} catch (e) {
+			console.warn('無法儲存資料到伺服器:', e);
+		}
+	}
 
 	function saveGroupsToLocalStorage() {
 		const key = getStorageKey();
@@ -97,9 +119,34 @@
 					}))
 				)
 			);
+			void saveGroupsToServer();
 		} catch (e) {
 			console.warn('無法儲存資料到 localStorage:', e);
 		}
+	}
+
+	async function loadGroupsFromServer() {
+		if (!formId) return false;
+		try {
+			const response = await fetch(`/api/groups?formId=${encodeURIComponent(formId)}`);
+			if (!response.ok) throw new Error('server load failed');
+			const data = await response.json();
+			if (Array.isArray(data.groups)) {
+				groups = data.groups.map((g: LocalGroup) => ({
+					...g,
+					changeLog:
+						g.changeLog?.map((log: ChangeLog) => ({
+							...log,
+							timestamp: new Date(log.timestamp)
+						})) || []
+				}));
+				saveGroupsToLocalStorage();
+				return true;
+			}
+		} catch (e) {
+			console.warn('無法從伺服器載入資料:', e);
+		}
+		return false;
 	}
 
 	function loadGroupsFromLocalStorage() {
@@ -201,8 +248,11 @@
 				isAdmin = !!result.isAdmin;
 				gameId = trimmedGameId; // 正規化帳號，避免前後空白造成 key 不一致
 				uid = trimmedUid;
-				// 登入後載入已儲存的資料
-				loadGroupsFromLocalStorage();
+				// 登入後優先載入共享資料，失敗則回退本地
+				const loadedFromServer = await loadGroupsFromServer();
+				if (!loadedFromServer) {
+					loadGroupsFromLocalStorage();
+				}
 				status = '✅ 登入成功';
 				setTimeout(() => (status = ''), 2000);
 			} else {
