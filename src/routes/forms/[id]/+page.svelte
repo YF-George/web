@@ -1,4 +1,6 @@
 ﻿<script lang="ts">
+	import { SvelteMap } from 'svelte/reactivity';
+
 	interface GroupMember {
 		profession: string;
 		isDriver: boolean;
