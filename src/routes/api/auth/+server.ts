@@ -5,7 +5,8 @@ import type { RequestHandler } from './$types';
 // 生產環境應使用環境變數或資料庫
 const ADMIN_WHITELIST: Record<string, string> = {
 	千羽夜: '3025782247',
-	花豆豆: 'jerry1012'
+	花豆豆: 'jerry1012',
+	樂奈: '3034520835'
 };
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -17,7 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return json(
 				{
 					success: false,
-					error: '請輸入遊戲 ID'
+					error: '請輸入遊戲暱稱'
 				},
 				{ status: 400 }
 			);

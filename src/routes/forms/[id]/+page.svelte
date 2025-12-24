@@ -167,7 +167,7 @@
 
 	async function handleLogin() {
 		if (!gameId.trim()) {
-			status = '❌ 請輸入遊戲 ID';
+			status = '❌ 請輸入遊戲暱稱';
 			setTimeout(() => (status = ''), 2000);
 			return;
 		}
@@ -508,11 +508,11 @@
 				}}
 			>
 				<label class="login-label">
-					<span class="login-label-text">遊戲 ID <span class="required">*</span></span>
+					<span class="login-label-text">遊戲暱稱 <span class="required">*</span></span>
 					<input
 						type="text"
 						class="login-input"
-						placeholder="請輸入您的遊戲 ID"
+						placeholder="請輸入您的遊戲暱稱"
 						value={gameId}
 						oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
 					/>
@@ -789,7 +789,7 @@
 											<span class="label-text">玩家 ID</span>
 											<input
 												type="text"
-												placeholder="遊戲 ID"
+												placeholder="遊戲暱稱"
 												value={member.playerId}
 												oninput={(e) =>
 													updateGroupField(
