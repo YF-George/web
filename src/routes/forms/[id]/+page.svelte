@@ -33,7 +33,6 @@
 
 	const GROUP_SIZE = 10;
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
-	const PENDING_UPDATE_DELAY = 3000; // 等待 1 秒來合併策錦記錄
 
 	interface PendingUpdate {
 		groupId: string;
@@ -150,8 +149,6 @@
 
 	async function loadGroupsFromServer() {
 		if (!formId) return false;
-		// 如果有待提交的更新，跳過刷新以避免覆蓋正在編輯的內容
-		if (pendingUpdates.size > 0) return false;
 		try {
 			const response = await fetch(`/api/groups?formId=${encodeURIComponent(formId)}`);
 			if (!response.ok) throw new Error('server load failed');
@@ -433,16 +430,16 @@
 						clearTimeout(pendingUpdates.get(key)!.timeout);
 					}
 
-					// 記錄未提交的變動
+					// 立即提交變動
 					const pending: PendingUpdate = {
 						groupId,
 						field: field as string,
 						oldValue: oldValue || '',
-						newValue: value,
-						timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
+						newValue: value
 					};
 
 					pendingUpdates.set(key, pending);
+					commitPendingUpdate(key);
 				}
 			}
 			return;
@@ -464,17 +461,17 @@
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
 
-			// 記錄未声紱的變動
+			// 立即提交變動
 			const pending: PendingUpdate = {
 				groupId,
 				index,
 				field: field as string,
 				oldValue: oldMember[field as keyof GroupMember],
-				newValue: value,
-				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
+				newValue: value
 			};
 
 			pendingUpdates.set(key, pending);
+			commitPendingUpdate(key);
 		}
 	}
 
@@ -497,11 +494,11 @@
 				groupId,
 				field: 'departureDate',
 				oldValue: oldDate || '',
-				newValue: value,
-				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
+				newValue: value
 			};
 
 			pendingUpdates.set(key, pending);
+			commitPendingUpdate(key);
 			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
@@ -521,11 +518,11 @@
 				groupId,
 				field: 'departureTime',
 				oldValue: oldTime || '',
-				newValue: value,
-				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
+				newValue: value
 			};
 
 			pendingUpdates.set(key, pending);
+			commitPendingUpdate(key);
 			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
