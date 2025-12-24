@@ -85,7 +85,7 @@
 			if (isLoggedIn) {
 				await loadGroupsFromServer();
 			}
-		}, 3000);
+		}, 500);
 	}
 
 	function stopAutoRefresh() {
@@ -280,12 +280,12 @@
 				setTimeout(() => (status = ''), 2000);
 			} else {
 				status = `❌ ${result.error || '登入失敗'}`;
-				setTimeout(() => (status = ''), 3000);
+				setTimeout(() => (status = ''), 2000);
 			}
 		} catch (e) {
 			console.error(e);
 			status = '❌ 登入失敗，請檢查網路連線';
-			setTimeout(() => (status = ''), 3000);
+			setTimeout(() => (status = ''), 2000);
 		} finally {
 			isLoading = false;
 		}
@@ -326,7 +326,7 @@
 	function addNewGroup() {
 		if (!isAdmin) {
 			status = '❌ 只有管理員可以添加團隊';
-			setTimeout(() => (status = ''), 3000);
+			setTimeout(() => (status = ''), 2000);
 			return;
 		}
 		// 找出最大的 ID 號碼，然後 +1
