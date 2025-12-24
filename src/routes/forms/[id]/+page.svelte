@@ -68,8 +68,8 @@
 	// 切換頁籤時重新載入資料
 	async function handleTabChange(newTab: 'forms' | 'history') {
 		activeTab = newTab;
-		if (newTab === 'history' && isLoggedIn) {
-			// 點擊「更改紀錄」時，重新從伺服器載入最新資料
+		if (isLoggedIn) {
+			// 點擊任何頁籤時，都從伺服器重新載入最新資料
 			await loadGroupsFromServer();
 		}
 	}
