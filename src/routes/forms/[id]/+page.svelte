@@ -2,6 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { getChannel } from '$lib/realtime';
 
 	interface GroupMember {
 		profession: string;
@@ -53,6 +54,10 @@
 	let formId = '';
 	$: formId = $page.params.id;
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
+	let isSyncing = false; // 防止同步衝突
+
+	// 即時通道（Ably）：若未設定 PUBLIC_ABLY_KEY 則為 null
+	let rtChannel: ReturnType<typeof getChannel> | null = null;
 
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -80,12 +85,12 @@
 
 	// 自動刷新函數
 	function startAutoRefresh() {
+		// 若有即時通道，禁用輪詢（不啟動 100ms）
+		if (rtChannel) return;
 		if (refreshInterval) return;
-		refreshInterval = setInterval(async () => {
-			if (isLoggedIn) {
-				await loadGroupsFromServer();
-			}
-		}, 100);
+		// 沒有即時通道時才回退輪詢（仍可改為更長間隔，或完全停用）
+		// 需求：不要 100ms；此處改為不啟動任何輪詢。
+		return;
 	}
 
 	function stopAutoRefresh() {
@@ -97,7 +102,53 @@
 
 	onDestroy(() => {
 		stopAutoRefresh();
+		// 取消訂閱即時通道
+		rtChannel?.unsubscribe();
+		rtChannel = null;
 	});
+
+	function setupRealtime() {
+		// 即時頻道名稱需與後端一致：teams:{formId}
+		if (!formId) return false;
+		const channelKey = `teams:${formId}`;
+		const ch = getChannel(channelKey);
+		if (!ch) return false;
+		rtChannel = ch;
+		ch.subscribe('groups', (msg) => {
+			const serverGroups = (msg.data as LocalGroup[]).map((g) => ({
+				...g,
+				changeLog:
+					g.changeLog?.map((log) => ({
+						...log,
+						timestamp: new Date(log.timestamp as unknown as string)
+					})) || []
+			}));
+			const serverHash = JSON.stringify(serverGroups);
+			const currentHash = JSON.stringify(groups);
+			if (serverHash !== currentHash) {
+				groups = serverGroups;
+				saveGroupsToLocalStorage();
+				// 即時資料已更新
+			}
+		});
+		return true;
+	}
+
+	function publishRealtime(next: LocalGroup[]) {
+		if (!rtChannel) return;
+		const payload = next.map((g) => ({
+			...g,
+			changeLog:
+				g.changeLog?.map((log) => ({
+					...log,
+					timestamp:
+						log.timestamp instanceof Date
+							? log.timestamp.toISOString()
+							: (log.timestamp as unknown as string)
+				})) || []
+		}));
+		rtChannel.publish('groups', payload);
+	}
 
 	async function saveGroupsToServer() {
 		if (!formId) return;
@@ -118,6 +169,8 @@
 					}))
 				})
 			});
+			// 發布到即時通道（若有）
+			publishRealtime(groups);
 		} catch (e) {
 			console.warn('無法儲存資料到伺服器:', e);
 		}
@@ -148,13 +201,14 @@
 	}
 
 	async function loadGroupsFromServer() {
-		if (!formId) return false;
+		if (!formId || isSyncing) return false;
+		isSyncing = true;
 		try {
 			const response = await fetch(`/api/groups?formId=${encodeURIComponent(formId)}`);
 			if (!response.ok) throw new Error('server load failed');
 			const data = await response.json();
-			if (Array.isArray(data.groups)) {
-				groups = data.groups.map((g: LocalGroup) => ({
+			if (Array.isArray(data.groups) && data.groups.length > 0) {
+				const serverGroups = data.groups.map((g: LocalGroup) => ({
 					...g,
 					changeLog:
 						g.changeLog?.map((log: ChangeLog) => ({
@@ -162,11 +216,22 @@
 							timestamp: new Date(log.timestamp)
 						})) || []
 				}));
-				saveGroupsToLocalStorage();
+
+				// 檢查是否有變更（避免不必要的重新渲染）
+				const serverHash = JSON.stringify(serverGroups);
+				const currentHash = JSON.stringify(groups);
+
+				if (serverHash !== currentHash) {
+					groups = serverGroups;
+					saveGroupsToLocalStorage();
+					// 伺服器資料已更新
+				}
 				return true;
 			}
 		} catch (e) {
 			console.warn('無法從伺服器載入資料:', e);
+		} finally {
+			isSyncing = false;
 		}
 		return false;
 	}
@@ -275,7 +340,11 @@
 				if (!loadedFromServer) {
 					loadGroupsFromLocalStorage();
 				}
-				startAutoRefresh();
+				// 先嘗試即時通道，成功則不啟動輪詢
+				const rtOk = setupRealtime();
+				if (!rtOk) {
+					startAutoRefresh();
+				}
 				status = '✅ 登入成功';
 				setTimeout(() => (status = ''), 2000);
 			} else {

@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import Ably from 'ably';
 import type { RequestHandler } from './$types';
 
 interface ChangeLog {
@@ -51,6 +52,17 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	await kv.set(keyFor(formId), groups);
+
+	// 發布即時更新（若已設定 ABLY_API_KEY）
+	const apiKey = process.env.ABLY_API_KEY;
+	if (apiKey) {
+		try {
+			const rest = new Ably.Rest({ key: apiKey });
+			await rest.channels.get(keyFor(formId)).publish('groups', groups);
+		} catch (err) {
+			console.warn('Ably 發布失敗:', err);
+		}
+	}
 
 	return new Response(JSON.stringify({ ok: true }), {
 		status: 200,
