@@ -1,17 +1,6 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
-/* 自訂動畫 */
-@keyframes pulse {
-	0%,
-	100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.8;
-	}
-}
-
 /* Styles moved from forms/[id]/+page.svelte for centralized layout styling */
 
 /* Circuit grid background */
@@ -356,33 +345,6 @@
 	background: white;
 	border: 1px solid #e5e7eb;
 	cursor: pointer;
-}
-
-.nav-save {
-	padding: 0.35rem 0.8rem;
-	border-radius: 8px;
-	background: #10b981;
-	color: white;
-	border: 1px solid #059669;
-	cursor: pointer;
-	font-weight: 500;
-	transition: all 0.2s;
-}
-
-.nav-save:hover {
-	background: #059669;
-	transform: translateY(-1px);
-	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nav-save.unsaved {
-	background: #ef4444;
-	border-color: #dc2626;
-	animation: pulse 2s ease-in-out infinite;
-}
-
-.nav-save.unsaved:hover {
-	background: #dc2626;
 }
 
 .history-section {

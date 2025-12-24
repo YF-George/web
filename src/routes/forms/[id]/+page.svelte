@@ -2,6 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { SvelteMap } from 'svelte/reactivity';
+	import type { Json } from '@liveblocks/client';
 	import { getChannel } from '$lib/realtime';
 	import { enterRoom, leaveRoom } from '$lib/liveblocks';
 
@@ -52,9 +53,8 @@
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
-	let hasUnsavedChanges = false; // 追蹤是否有未儲存的變更
-	let formId = '';
-	$: formId = $page.params.id;
+	let formId = $page.params.id ?? '';
+	$: formId = $page.params.id ?? '';
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 	let isSyncing = false; // 防止同步衝突
 
@@ -197,7 +197,7 @@
 							: (log.timestamp as unknown as string)
 				})) || []
 		}));
-		lbRoom.broadcastEvent({ type: 'groups', data: payload });
+		lbRoom.broadcastEvent({ type: 'groups', data: payload as unknown as Json });
 	}
 
 	async function saveGroupsToServer() {
@@ -245,29 +245,9 @@
 					}))
 				)
 			);
-			// 標記有未儲存的變更（不自動上傳到伺服器）
-			hasUnsavedChanges = true;
+			void saveGroupsToServer();
 		} catch (e) {
 			console.warn('無法儲存資料到 localStorage:', e);
-		}
-	}
-
-	// 手動儲存並發佈到伺服器
-	async function manualSave() {
-		if (!hasUnsavedChanges) {
-			status = 'ℹ️ 沒有需要儲存的變更';
-			setTimeout(() => (status = ''), 2000);
-			return;
-		}
-		status = '💾 儲存中...';
-		try {
-			await saveGroupsToServer();
-			hasUnsavedChanges = false;
-			status = '✅ 儲存成功';
-			setTimeout(() => (status = ''), 2000);
-		} catch {
-			status = '❌ 儲存失敗';
-			setTimeout(() => (status = ''), 3000);
 		}
 	}
 
@@ -585,9 +565,6 @@
 					commitPendingUpdate(key);
 				}
 			}
-
-			// 儲存到本地，觸發響應性更新
-			saveGroupsToLocalStorage();
 			return;
 		}
 
@@ -619,9 +596,6 @@
 			pendingUpdates.set(key, pending);
 			commitPendingUpdate(key);
 		}
-
-		// 儲存到本地，觸發響應性更新
-		saveGroupsToLocalStorage();
 	}
 
 	function getActiveGroup() {
@@ -806,14 +780,6 @@
 					</li>
 				</ul>
 				<div class="nav-actions">
-					<button
-						class="nav-save"
-						class:unsaved={hasUnsavedChanges}
-						onclick={manualSave}
-						title={hasUnsavedChanges ? '有未儲存的變更' : '已儲存'}
-					>
-						{hasUnsavedChanges ? '💾 儲存' : '✓ 已儲存'}
-					</button>
 					<span class="nav-user">{isAdmin ? `👑 ${gameId}` : gameId}</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
