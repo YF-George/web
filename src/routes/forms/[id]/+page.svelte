@@ -52,6 +52,7 @@
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
+	let hasUnsavedChanges = false; // 追蹤是否有未儲存的變更
 	let formId = '';
 	$: formId = $page.params.id;
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -244,9 +245,29 @@
 					}))
 				)
 			);
-			void saveGroupsToServer();
+			// 標記有未儲存的變更（不自動上傳到伺服器）
+			hasUnsavedChanges = true;
 		} catch (e) {
 			console.warn('無法儲存資料到 localStorage:', e);
+		}
+	}
+
+	// 手動儲存並發佈到伺服器
+	async function manualSave() {
+		if (!hasUnsavedChanges) {
+			status = 'ℹ️ 沒有需要儲存的變更';
+			setTimeout(() => (status = ''), 2000);
+			return;
+		}
+		status = '💾 儲存中...';
+		try {
+			await saveGroupsToServer();
+			hasUnsavedChanges = false;
+			status = '✅ 儲存成功';
+			setTimeout(() => (status = ''), 2000);
+		} catch {
+			status = '❌ 儲存失敗';
+			setTimeout(() => (status = ''), 3000);
 		}
 	}
 
@@ -779,6 +800,14 @@
 					</li>
 				</ul>
 				<div class="nav-actions">
+					<button
+						class="nav-save"
+						class:unsaved={hasUnsavedChanges}
+						onclick={manualSave}
+						title={hasUnsavedChanges ? '有未儲存的變更' : '已儲存'}
+					>
+						{hasUnsavedChanges ? '💾 儲存' : '✓ 已儲存'}
+					</button>
 					<span class="nav-user">{isAdmin ? `👑 ${gameId}` : gameId}</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
