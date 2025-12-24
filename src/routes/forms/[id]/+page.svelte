@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { getChannel } from '$lib/realtime';
+	import { enterRoom, leaveRoom } from '$lib/liveblocks';
 
 	interface GroupMember {
 		profession: string;
@@ -58,6 +59,8 @@
 
 	// 即時通道（Ably）：若未設定 PUBLIC_ABLY_KEY 則為 null
 	let rtChannel: ReturnType<typeof getChannel> | null = null;
+	// Liveblocks 房間（若設定 LIVEBLOCKS_SECRET_KEY 且 auth 通過）
+	let lbRoom: ReturnType<typeof enterRoom> | null = null;
 
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -105,6 +108,9 @@
 		// 取消訂閱即時通道
 		rtChannel?.unsubscribe();
 		rtChannel = null;
+		// 離開 Liveblocks 房間
+		leaveRoom();
+		lbRoom = null;
 	});
 
 	function setupRealtime() {
@@ -134,6 +140,32 @@
 		return true;
 	}
 
+	function setupLiveblocks() {
+		if (!formId) return false;
+		lbRoom = enterRoom(`teams:${formId}`);
+		// 訂閱 Liveblocks 事件
+		lbRoom.subscribe('event', ({ event }) => {
+			// 事件格式：{ type: string, data: unknown }
+			const ev = event as { type: string; data: unknown };
+			if (!ev || ev.type !== 'groups' || !Array.isArray(ev.data)) return;
+			const serverGroups = (ev.data as LocalGroup[]).map((g) => ({
+				...g,
+				changeLog:
+					g.changeLog?.map((log) => ({
+						...log,
+						timestamp: new Date(log.timestamp as unknown as string)
+					})) || []
+			}));
+			const serverHash = JSON.stringify(serverGroups);
+			const currentHash = JSON.stringify(groups);
+			if (serverHash !== currentHash) {
+				groups = serverGroups;
+				saveGroupsToLocalStorage();
+			}
+		});
+		return true;
+	}
+
 	function publishRealtime(next: LocalGroup[]) {
 		if (!rtChannel) return;
 		const payload = next.map((g) => ({
@@ -148,6 +180,22 @@
 				})) || []
 		}));
 		rtChannel.publish('groups', payload);
+	}
+
+	function publishLiveblocks(next: LocalGroup[]) {
+		if (!lbRoom) return;
+		const payload = next.map((g) => ({
+			...g,
+			changeLog:
+				g.changeLog?.map((log) => ({
+					...log,
+					timestamp:
+						log.timestamp instanceof Date
+							? log.timestamp.toISOString()
+							: (log.timestamp as unknown as string)
+				})) || []
+		}));
+		lbRoom.broadcastEvent({ type: 'groups', data: payload });
 	}
 
 	async function saveGroupsToServer() {
@@ -169,7 +217,8 @@
 					}))
 				})
 			});
-			// 發布到即時通道（若有）
+			// 發布到即時通道（若可用）
+			publishLiveblocks(groups);
 			publishRealtime(groups);
 		} catch (e) {
 			console.warn('無法儲存資料到伺服器:', e);
@@ -340,10 +389,13 @@
 				if (!loadedFromServer) {
 					loadGroupsFromLocalStorage();
 				}
-				// 先嘗試即時通道，成功則不啟動輪詢
-				const rtOk = setupRealtime();
-				if (!rtOk) {
-					startAutoRefresh();
+				// 先嘗試 Liveblocks，其次 Ably，再次回退輪詢
+				const lbOk = setupLiveblocks();
+				if (!lbOk) {
+					const rtOk = setupRealtime();
+					if (!rtOk) {
+						startAutoRefresh();
+					}
 				}
 				status = '✅ 登入成功';
 				setTimeout(() => (status = ''), 2000);
