@@ -30,13 +30,28 @@ interface LocalGroup {
 
 const keyFor = (formId: string) => `teams:${formId}`;
 
+async function loadGroups(formId: string): Promise<LocalGroup[]> {
+	const hash = await kv.hgetall<Record<string, LocalGroup | string>>(keyFor(formId));
+	if (!hash) return [];
+	return Object.values(hash).map((val) => {
+		if (typeof val === 'string') {
+			try {
+				return JSON.parse(val) as LocalGroup;
+			} catch (err) {
+				console.warn('parse group failed', err);
+			}
+		}
+		return val as LocalGroup;
+	});
+}
+
 export const GET: RequestHandler = async ({ url }) => {
 	const formId = url.searchParams.get('formId');
 	if (!formId) {
 		return new Response(JSON.stringify({ error: 'missing formId' }), { status: 400 });
 	}
 
-	const groups = (await kv.get<LocalGroup[]>(keyFor(formId))) || [];
+	const groups = await loadGroups(formId);
 	return new Response(JSON.stringify({ groups }), {
 		status: 200,
 		headers: { 'content-type': 'application/json' }
@@ -51,7 +66,17 @@ export const POST: RequestHandler = async ({ request }) => {
 		return new Response(JSON.stringify({ error: 'missing formId or groups' }), { status: 400 });
 	}
 
-	await kv.set(keyFor(formId), groups);
+	// 以 Hash 方式存每一團，確保各團資料獨立
+	const toSave = Object.fromEntries(groups.map((g) => [g.id, g]));
+	await kv.hset(keyFor(formId), toSave);
+
+	// 移除已刪除的團隊資料
+	const existing = (await kv.hkeys(keyFor(formId))) || [];
+	const incomingIds = new Set(groups.map((g) => g.id));
+	const toDelete = existing.filter((id) => !incomingIds.has(id));
+	if (toDelete.length) {
+		await kv.hdel(keyFor(formId), ...toDelete);
+	}
 
 	// 發布即時更新到 Ably（若已設定 ABLY_API_KEY）
 	const ablyKey = process.env.ABLY_API_KEY;
