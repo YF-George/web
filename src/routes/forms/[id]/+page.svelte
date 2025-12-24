@@ -150,6 +150,8 @@
 
 	async function loadGroupsFromServer() {
 		if (!formId) return false;
+		// 如果有待提交的更新，跳過刷新以避免覆蓋正在編輯的內容
+		if (pendingUpdates.size > 0) return false;
 		try {
 			const response = await fetch(`/api/groups?formId=${encodeURIComponent(formId)}`);
 			if (!response.ok) throw new Error('server load failed');
