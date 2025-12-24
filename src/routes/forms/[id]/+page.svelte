@@ -85,7 +85,7 @@
 			if (isLoggedIn) {
 				await loadGroupsFromServer();
 			}
-		}, 500);
+		}, 100);
 	}
 
 	function stopAutoRefresh() {
