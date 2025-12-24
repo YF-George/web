@@ -132,9 +132,9 @@
 			const serverHash = JSON.stringify(serverGroups);
 			const currentHash = JSON.stringify(groups);
 			if (serverHash !== currentHash) {
-				groups = serverGroups;
+				// 使用展開運算子確保觸發 Svelte 響應性
+				groups = [...serverGroups];
 				saveGroupsToLocalStorage();
-				// 即時資料已更新
 			}
 		});
 		return true;
@@ -159,7 +159,8 @@
 			const serverHash = JSON.stringify(serverGroups);
 			const currentHash = JSON.stringify(groups);
 			if (serverHash !== currentHash) {
-				groups = serverGroups;
+				// 使用展開運算子確保觸發 Svelte 響應性
+				groups = [...serverGroups];
 				saveGroupsToLocalStorage();
 			}
 		});
@@ -271,9 +272,9 @@
 				const currentHash = JSON.stringify(groups);
 
 				if (serverHash !== currentHash) {
-					groups = serverGroups;
+					// 使用展開運算子確保觸發 Svelte 響應性
+					groups = [...serverGroups];
 					saveGroupsToLocalStorage();
-					// 伺服器資料已更新
 				}
 				return true;
 			}
