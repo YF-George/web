@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { page } from '$app/stores';
 	import { SvelteMap } from 'svelte/reactivity';
 
@@ -52,6 +53,7 @@
 	let isLoading = false;
 	let formId = '';
 	$: formId = $page.params.id;
+	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -76,6 +78,27 @@
 
 	// 資料持久化：以表單路由 id 為 key（所有使用者共享）
 	const getStorageKey = () => (formId ? `teams-${formId}` : null);
+
+	// 自動刷新函數
+	function startAutoRefresh() {
+		if (refreshInterval) return;
+		refreshInterval = setInterval(async () => {
+			if (isLoggedIn) {
+				await loadGroupsFromServer();
+			}
+		}, 3000);
+	}
+
+	function stopAutoRefresh() {
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+			refreshInterval = null;
+		}
+	}
+
+	onDestroy(() => {
+		stopAutoRefresh();
+	});
 
 	async function saveGroupsToServer() {
 		if (!formId) return;
@@ -253,6 +276,7 @@
 				if (!loadedFromServer) {
 					loadGroupsFromLocalStorage();
 				}
+				startAutoRefresh();
 				status = '✅ 登入成功';
 				setTimeout(() => (status = ''), 2000);
 			} else {
@@ -269,6 +293,7 @@
 	}
 
 	function logout() {
+		stopAutoRefresh();
 		isLoggedIn = false;
 		isAdmin = false;
 
