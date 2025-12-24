@@ -756,349 +756,351 @@
 		</div>
 	</div>
 {:else}
-	<div class="container">
-		<header>
-			<nav class="main-nav" aria-label="主要導覽">
-				<ul class="nav-list">
-					<li class="nav-item">
-						<button
-							class="nav-link"
-							class:active={activeTab === 'forms'}
-							onclick={() => (activeTab = 'forms')}
-						>
-							填寫表單
-						</button>
-					</li>
-					<li class="nav-item">
-						<button
-							class="nav-link"
-							class:active={activeTab === 'history'}
-							onclick={() => (activeTab = 'history')}
-						>
-							更改紀錄
-						</button>
-					</li>
-				</ul>
-				<div class="nav-actions">
-					<span class="nav-user">{isAdmin ? `👑 ${gameId}` : gameId}</span>
-					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
-					<button class="nav-logout" onclick={logout}>登出</button>
-				</div>
-			</nav>
-			<!-- header-content removed: user info moved into nav -->
-		</header>
+	{#key formId}
+		<div class="container">
+			<header>
+				<nav class="main-nav" aria-label="主要導覽">
+					<ul class="nav-list">
+						<li class="nav-item">
+							<button
+								class="nav-link"
+								class:active={activeTab === 'forms'}
+								onclick={() => (activeTab = 'forms')}
+							>
+								填寫表單
+							</button>
+						</li>
+						<li class="nav-item">
+							<button
+								class="nav-link"
+								class:active={activeTab === 'history'}
+								onclick={() => (activeTab = 'history')}
+							>
+								更改紀錄
+							</button>
+						</li>
+					</ul>
+					<div class="nav-actions">
+						<span class="nav-user">{isAdmin ? `👑 ${gameId}` : gameId}</span>
+						<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
+						<button class="nav-logout" onclick={logout}>登出</button>
+					</div>
+				</nav>
+				<!-- header-content removed: user info moved into nav -->
+			</header>
 
-		{#if status}
-			<div class="toolbar">
-				<div
-					class="status"
-					class:error={status.includes('❌')}
-					class:success={status.includes('✅')}
-				>
-					{status}
+			{#if status}
+				<div class="toolbar">
+					<div
+						class="status"
+						class:error={status.includes('❌')}
+						class:success={status.includes('✅')}
+					>
+						{status}
+					</div>
 				</div>
-			</div>
-		{/if}
+			{/if}
 
-		<section class="group-section">
-			<div class="tabs-header">
-				<div class="tabs">
-					{#each groups as group (group.id)}
-						<button
-							class="tab"
-							class:active={activeGroupId === group.id}
-							onclick={() => (activeGroupId = group.id)}
-						>
-							團隊 {group.id}
-							{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
-								<span
-									class="tab-close"
-									onclick={(e) => {
-										e.stopPropagation();
-										deleteGroup(group.id);
-									}}
-									onkeydown={(e) => {
-										if (e.key === 'Enter' || e.key === ' ') {
-											e.preventDefault();
+			<section class="group-section">
+				<div class="tabs-header">
+					<div class="tabs">
+						{#each groups as group (group.id)}
+							<button
+								class="tab"
+								class:active={activeGroupId === group.id}
+								onclick={() => (activeGroupId = group.id)}
+							>
+								團隊 {group.id}
+								{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
+									<span
+										class="tab-close"
+										onclick={(e) => {
 											e.stopPropagation();
 											deleteGroup(group.id);
-										}
-									}}
-									role="button"
-									tabindex="0"
-									title="刪除此團隊"
-								>
-									×
-								</span>
-							{/if}
-						</button>
-					{/each}
-					{#if activeTab === 'forms' && isAdmin}
-						<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
-					{/if}
-				</div>
-			</div>
-			{#if activeTab === 'forms'}
-				{#if getActiveGroup()}
-					<div class="departure-time-row">
-						<label class="departure-label">
-							<input
-								class="departure-input departure-date"
-								type="date"
-								aria-label="發車日期"
-								value={getActiveGroup().departureDate ?? ''}
-								onchange={(e) =>
-									updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
-							/>
-						</label>
-						<label class="departure-label">
-							<input
-								class="departure-input departure-time"
-								type="time"
-								aria-label="發車時間"
-								value={getActiveGroup().departureTime ?? ''}
-								onchange={(e) =>
-									updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
-							/>
-						</label>
-						<div class="departure-weekday">
-							{#if getGroupWeekday(getActiveGroup())}
-								<span class="weekday">{getGroupWeekday(getActiveGroup())}</span>
-							{/if}
-						</div>
-						<label class="departure-label">
-							<input
-								class="departure-input dungeon-name"
-								type="text"
-								aria-label="副本名稱"
-								placeholder="副本名稱"
-								value={getActiveGroup().dungeonName ?? ''}
-								oninput={(e) =>
-									updateGroupField(
-										activeGroupId,
-										undefined,
-										'dungeonName',
-										(e.target as HTMLInputElement).value
-									)}
-							/>
-						</label>
-						<label class="departure-label">
-							<input
-								class="departure-input level"
-								type="text"
-								aria-label="等級"
-								placeholder="等級"
-								value={getActiveGroup().level ?? ''}
-								oninput={(e) =>
-									updateGroupField(
-										activeGroupId,
-										undefined,
-										'level',
-										(e.target as HTMLInputElement).value
-									)}
-							/>
-						</label>
-						<label class="departure-label">
-							<input
-								class="departure-input gear-score-req"
-								type="text"
-								aria-label="裝分限制"
-								placeholder="裝分限制"
-								value={getActiveGroup().gearScoreReq ?? ''}
-								oninput={(e) =>
-									updateGroupField(
-										activeGroupId,
-										undefined,
-										'gearScoreReq',
-										(e.target as HTMLInputElement).value
-									)}
-							/>
-						</label>
-						<label class="departure-label">
-							<select
-								class="departure-input content-type"
-								aria-label="內容類型"
-								value={getActiveGroup().contentType ?? ''}
-								onchange={(e) =>
-									updateGroupField(
-										activeGroupId,
-										undefined,
-										'contentType',
-										(e.target as HTMLSelectElement).value
-									)}
-							>
-								<option value="">請選擇</option>
-								<option value="俠境">俠境</option>
-								<option value="百業">百業</option>
-								<option value="百業+俠境">百業+俠境</option>
-							</select>
-						</label>
-					</div>
-					<div class="group-grid">
-						{#each getActiveGroup().members as member, index (`${activeGroupId}-${index}`)}
-							<div class="member-card">
-								<div class="member-header">
-									<span class="member-number">{index + 1}</span>
-									<div class="role-badges">
-										<label class="badge-checkbox" class:active={member.isDriver}>
-											<input
-												type="checkbox"
-												checked={member.isDriver}
-												onchange={(e) =>
-													updateGroupField(
-														activeGroupId,
-														index,
-														'isDriver',
-														(e.target as HTMLInputElement).checked
-													)}
-											/>
-											<span>🚩 隊長</span>
-										</label>
-										<label class="badge-checkbox" class:active={member.isHelper}>
-											<input
-												type="checkbox"
-												checked={member.isHelper}
-												onchange={(e) =>
-													updateGroupField(
-														activeGroupId,
-														index,
-														'isHelper',
-														(e.target as HTMLInputElement).checked
-													)}
-											/>
-											<span>🤝 幫打</span>
-										</label>
-									</div>
-								</div>
-								<div class="form-row">
-									<div class="form-group">
-										<label>
-											<span class="label-text">職能</span>
-											<select
-												value={member.profession}
-												onchange={(e) =>
-													updateGroupField(
-														activeGroupId,
-														index,
-														'profession',
-														(e.target as HTMLSelectElement).value
-													)}
-											>
-												<option value="">請選擇</option>
-												<option value="坦克">坦克</option>
-												<option value="治療">治療</option>
-												<option value="輸出">輸出</option>
-											</select>
-										</label>
-									</div>
-								</div>
-								<div class="form-row">
-									<!-- 武器欄位已移除 -->
-								</div>
-								<div class="form-row">
-									<div class="form-group">
-										<label>
-											<span class="label-text">玩家 ID</span>
-											<input
-												type="text"
-												placeholder="遊戲暱稱"
-												value={member.playerId}
-												oninput={(e) =>
-													updateGroupField(
-														activeGroupId,
-														index,
-														'playerId',
-														(e.target as HTMLInputElement).value
-													)}
-											/>
-										</label>
-									</div>
-								</div>
-								<div class="form-row">
-									<div class="form-group">
-										<label>
-											<span class="label-text">裝分</span>
-											<input
-												type="number"
-												min="0"
-												placeholder="0"
-												value={member.gearScore}
-												oninput={(e) =>
-													updateGroupField(
-														activeGroupId,
-														index,
-														'gearScore',
-														(e.target as HTMLInputElement).value
-													)}
-											/>
-										</label>
-									</div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			{:else}
-				<section class="history-section">
-					<div class="history-header-wrapper">
-						<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
-						<div class="history-stats">
-							{#if (getActiveGroup()?.changeLog ?? []).length > 0}
-								<span class="stat-item"
-									>變更數：<strong>{(getActiveGroup()?.changeLog ?? []).length}</strong></span
-								>
-								<span class="stat-item"
-									>最後更新：<strong
-										>{(getActiveGroup()?.changeLog?.[0]?.timestamp ?? new Date()).toLocaleString(
-											'zh-TW'
-										)}</strong
-									></span
-								>
-								{#if (getActiveGroup()?.changeLog ?? []).length >= MAX_CHANGELOG_ENTRIES}
-									<span class="stat-item warning">⚠️ 已達上限 ({MAX_CHANGELOG_ENTRIES} 筆)</span>
-								{/if}
-							{:else}
-								<span class="stat-item">變更數：<strong>0</strong></span>
-							{/if}
-						</div>
-					</div>
-
-					{#if (getActiveGroup()?.changeLog ?? []).length === 0}
-						<div class="history-empty">
-							<p class="history-note">✨ 此團隊尚無更改紀錄</p>
-							<p class="history-hint">在「填寫表單」頁面對此團隊進行操作都會記錄在此</p>
-						</div>
-					{:else}
-						<div class="history-list">
-							{#each getActiveGroup()?.changeLog ?? [] as entry (entry.id)}
-								<div class="history-entry">
-									<div class="history-action-badge">
-										{#if entry.action === '建立團隊'}
-											<span class="badge badge-create">🆕 {entry.action}</span>
-										{:else if entry.action === '刪除團隊'}
-											<span class="badge badge-delete">🗑️ {entry.action}</span>
-										{:else if entry.action === '更新成員'}
-											<span class="badge badge-update">✏️ {entry.action}</span>
-										{:else if entry.action === '更新發車日期'}
-											<span class="badge badge-date">📅 {entry.action}</span>
-										{:else if entry.action === '更新發車時間'}
-											<span class="badge badge-time">⏰ {entry.action}</span>
-										{:else}
-											<span class="badge">{entry.action}</span>
-										{/if}
-									</div>
-									<span class="history-details">{entry.details}</span>
-									<span class="history-user">操作者：<strong>{entry.gameId}</strong></span>
-									<time class="history-timestamp"
-										>{entry.timestamp.toLocaleTimeString('zh-TW', { hour12: false })}
-										{entry.timestamp.toLocaleDateString('zh-TW')}</time
+										}}
+										onkeydown={(e) => {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault();
+												e.stopPropagation();
+												deleteGroup(group.id);
+											}
+										}}
+										role="button"
+										tabindex="0"
+										title="刪除此團隊"
 									>
+										×
+									</span>
+								{/if}
+							</button>
+						{/each}
+						{#if activeTab === 'forms' && isAdmin}
+							<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
+						{/if}
+					</div>
+				</div>
+				{#if activeTab === 'forms'}
+					{#if getActiveGroup()}
+						<div class="departure-time-row">
+							<label class="departure-label">
+								<input
+									class="departure-input departure-date"
+									type="date"
+									aria-label="發車日期"
+									value={getActiveGroup().departureDate ?? ''}
+									onchange={(e) =>
+										updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
+								/>
+							</label>
+							<label class="departure-label">
+								<input
+									class="departure-input departure-time"
+									type="time"
+									aria-label="發車時間"
+									value={getActiveGroup().departureTime ?? ''}
+									onchange={(e) =>
+										updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
+								/>
+							</label>
+							<div class="departure-weekday">
+								{#if getGroupWeekday(getActiveGroup())}
+									<span class="weekday">{getGroupWeekday(getActiveGroup())}</span>
+								{/if}
+							</div>
+							<label class="departure-label">
+								<input
+									class="departure-input dungeon-name"
+									type="text"
+									aria-label="副本名稱"
+									placeholder="副本名稱"
+									value={getActiveGroup().dungeonName ?? ''}
+									oninput={(e) =>
+										updateGroupField(
+											activeGroupId,
+											undefined,
+											'dungeonName',
+											(e.target as HTMLInputElement).value
+										)}
+								/>
+							</label>
+							<label class="departure-label">
+								<input
+									class="departure-input level"
+									type="text"
+									aria-label="等級"
+									placeholder="等級"
+									value={getActiveGroup().level ?? ''}
+									oninput={(e) =>
+										updateGroupField(
+											activeGroupId,
+											undefined,
+											'level',
+											(e.target as HTMLInputElement).value
+										)}
+								/>
+							</label>
+							<label class="departure-label">
+								<input
+									class="departure-input gear-score-req"
+									type="text"
+									aria-label="裝分限制"
+									placeholder="裝分限制"
+									value={getActiveGroup().gearScoreReq ?? ''}
+									oninput={(e) =>
+										updateGroupField(
+											activeGroupId,
+											undefined,
+											'gearScoreReq',
+											(e.target as HTMLInputElement).value
+										)}
+								/>
+							</label>
+							<label class="departure-label">
+								<select
+									class="departure-input content-type"
+									aria-label="內容類型"
+									value={getActiveGroup().contentType ?? ''}
+									onchange={(e) =>
+										updateGroupField(
+											activeGroupId,
+											undefined,
+											'contentType',
+											(e.target as HTMLSelectElement).value
+										)}
+								>
+									<option value="">請選擇</option>
+									<option value="俠境">俠境</option>
+									<option value="百業">百業</option>
+									<option value="百業+俠境">百業+俠境</option>
+								</select>
+							</label>
+						</div>
+						<div class="group-grid">
+							{#each getActiveGroup().members as member, index (`${activeGroupId}-${index}`)}
+								<div class="member-card">
+									<div class="member-header">
+										<span class="member-number">{index + 1}</span>
+										<div class="role-badges">
+											<label class="badge-checkbox" class:active={member.isDriver}>
+												<input
+													type="checkbox"
+													checked={member.isDriver}
+													onchange={(e) =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'isDriver',
+															(e.target as HTMLInputElement).checked
+														)}
+												/>
+												<span>🚩 隊長</span>
+											</label>
+											<label class="badge-checkbox" class:active={member.isHelper}>
+												<input
+													type="checkbox"
+													checked={member.isHelper}
+													onchange={(e) =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'isHelper',
+															(e.target as HTMLInputElement).checked
+														)}
+												/>
+												<span>🤝 幫打</span>
+											</label>
+										</div>
+									</div>
+									<div class="form-row">
+										<div class="form-group">
+											<label>
+												<span class="label-text">職能</span>
+												<select
+													value={member.profession}
+													onchange={(e) =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'profession',
+															(e.target as HTMLSelectElement).value
+														)}
+												>
+													<option value="">請選擇</option>
+													<option value="坦克">坦克</option>
+													<option value="治療">治療</option>
+													<option value="輸出">輸出</option>
+												</select>
+											</label>
+										</div>
+									</div>
+									<div class="form-row">
+										<!-- 武器欄位已移除 -->
+									</div>
+									<div class="form-row">
+										<div class="form-group">
+											<label>
+												<span class="label-text">玩家 ID</span>
+												<input
+													type="text"
+													placeholder="遊戲暱稱"
+													value={member.playerId}
+													oninput={(e) =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'playerId',
+															(e.target as HTMLInputElement).value
+														)}
+												/>
+											</label>
+										</div>
+									</div>
+									<div class="form-row">
+										<div class="form-group">
+											<label>
+												<span class="label-text">裝分</span>
+												<input
+													type="number"
+													min="0"
+													placeholder="0"
+													value={member.gearScore}
+													oninput={(e) =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'gearScore',
+															(e.target as HTMLInputElement).value
+														)}
+												/>
+											</label>
+										</div>
+									</div>
 								</div>
 							{/each}
 						</div>
 					{/if}
-				</section>
-			{/if}
-		</section>
-	</div>
+				{:else}
+					<section class="history-section">
+						<div class="history-header-wrapper">
+							<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
+							<div class="history-stats">
+								{#if (getActiveGroup()?.changeLog ?? []).length > 0}
+									<span class="stat-item"
+										>變更數：<strong>{(getActiveGroup()?.changeLog ?? []).length}</strong></span
+									>
+									<span class="stat-item"
+										>最後更新：<strong
+											>{(getActiveGroup()?.changeLog?.[0]?.timestamp ?? new Date()).toLocaleString(
+												'zh-TW'
+											)}</strong
+										></span
+									>
+									{#if (getActiveGroup()?.changeLog ?? []).length >= MAX_CHANGELOG_ENTRIES}
+										<span class="stat-item warning">⚠️ 已達上限 ({MAX_CHANGELOG_ENTRIES} 筆)</span>
+									{/if}
+								{:else}
+									<span class="stat-item">變更數：<strong>0</strong></span>
+								{/if}
+							</div>
+						</div>
+
+						{#if (getActiveGroup()?.changeLog ?? []).length === 0}
+							<div class="history-empty">
+								<p class="history-note">✨ 此團隊尚無更改紀錄</p>
+								<p class="history-hint">在「填寫表單」頁面對此團隊進行操作都會記錄在此</p>
+							</div>
+						{:else}
+							<div class="history-list">
+								{#each getActiveGroup()?.changeLog ?? [] as entry (entry.id)}
+									<div class="history-entry">
+										<div class="history-action-badge">
+											{#if entry.action === '建立團隊'}
+												<span class="badge badge-create">🆕 {entry.action}</span>
+											{:else if entry.action === '刪除團隊'}
+												<span class="badge badge-delete">🗑️ {entry.action}</span>
+											{:else if entry.action === '更新成員'}
+												<span class="badge badge-update">✏️ {entry.action}</span>
+											{:else if entry.action === '更新發車日期'}
+												<span class="badge badge-date">📅 {entry.action}</span>
+											{:else if entry.action === '更新發車時間'}
+												<span class="badge badge-time">⏰ {entry.action}</span>
+											{:else}
+												<span class="badge">{entry.action}</span>
+											{/if}
+										</div>
+										<span class="history-details">{entry.details}</span>
+										<span class="history-user">操作者：<strong>{entry.gameId}</strong></span>
+										<time class="history-timestamp"
+											>{entry.timestamp.toLocaleTimeString('zh-TW', { hour12: false })}
+											{entry.timestamp.toLocaleDateString('zh-TW')}</time
+										>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</section>
+				{/if}
+			</section>
+		</div>
+	{/key}
 {/if}
