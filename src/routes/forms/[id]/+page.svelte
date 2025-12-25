@@ -635,7 +635,7 @@
 	<div class="circuit-wrapper">
 		<div class="circuit-background"></div>
 
-		<div class="login-container">
+		<div class="container">
 			<div class="login-card">
 				<div class="login-header">
 					<h1>⚔️ 團隊管理系統</h1>
