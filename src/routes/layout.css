@@ -17,8 +17,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	/* 改為透明以讓底層的 circuit-background 顯示出來 */
-	background: transparent;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 	padding: 2rem;
 }
 
@@ -63,60 +62,112 @@
 		),
 		radial-gradient(circle at 20px 20px, rgba(55, 65, 81, 0.12) 2px, transparent 2px),
 		radial-gradient(circle at 40px 40px, rgba(55, 65, 81, 0.12) 2px, transparent 2px);
-	.circuit-background {
+	background-size:
 		40px 40px,
 		40px 40px,
 		40px 40px,
 		40px 40px;
+
+	/* 平移背景位置以產生緩慢滑動的視覺效果（多圖層一起移動） */
+	background-position:
+		0 0,
+		0 0,
+		0 0,
+		0 0;
+	animation: circuitPan 20s linear infinite;
+}
+
+/* 登入卡片進場動畫與互動微動 */
+.login-card {
+	animation: floatIn 420ms cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+.login-card:hover {
+	transform: translateY(-6px);
+}
+
+/* 如果使用者偏好簡化動作，關閉動畫以符合無障礙 */
+@media (prefers-reduced-motion: reduce) {
+	.circuit-background,
+	.login-card {
+		animation: none !important;
+		transition: none !important;
+	}
+}
+
+/* 動畫定義 */
+@keyframes circuitPan {
+	0% {
+		background-position:
+			0px 0px,
+			0px 0px,
+			0px 0px,
+			0px 0px;
+	}
+	50% {
+		background-position:
+			20px 20px,
+			-20px -20px,
+			10px 10px,
+			-10px -10px;
+	}
+	100% {
+		background-position:
+			40px 40px,
+			-40px -40px,
+			20px 20px,
+			-20px -20px;
+	}
+}
+
+@keyframes floatIn {
+	from {
+		opacity: 0;
+		transform: translateY(12px) scale(0.995);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
 }
 
 /* Ensure login card appears above the background */
-	.circuit-background {
-		position: absolute;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		left: 0;
-		z-index: 0;
-		pointer-events: none;
-		/* 提高不透明度，讓圖案在淺色背景上更容易看見 */
-		background-image: repeating-linear-gradient(
-				0deg,
-				transparent,
-				transparent 19px,
-				rgba(75, 85, 99, 0.12) 19px,
-				rgba(75, 85, 99, 0.12) 20px,
-				transparent 20px,
-				transparent 39px,
-				rgba(75, 85, 99, 0.12) 39px,
-				rgba(75, 85, 99, 0.12) 40px
-			),
-			repeating-linear-gradient(
-				90deg,
-				transparent,
-				transparent 19px,
-				rgba(75, 85, 99, 0.12) 19px,
-				rgba(75, 85, 99, 0.12) 20px,
-				transparent 20px,
-				transparent 39px,
-				rgba(75, 85, 99, 0.12) 39px,
-				rgba(75, 85, 99, 0.12) 40px
-			),
-			radial-gradient(
-				circle at 20px 20px,
-				rgba(55, 65, 81, 0.16) 2px,
-				transparent 2px
-			),
-			radial-gradient(
-				circle at 40px 40px,
-				rgba(55, 65, 81, 0.16) 2px,
-				transparent 2px
-			);
-		background-size:
-			40px 40px,
-			40px 40px,
-			40px 40px,
-			40px 40px;
+.login-container,
+.login-card {
+	position: relative;
+	z-index: 1;
+}
+
+/* Wrapper content that should sit above the circuit background */
+.circuit-content {
+	position: relative;
+	z-index: 1;
+}
+
+.login-card {
+	background: white;
+	border-radius: 20px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	padding: 3rem;
+	max-width: 480px;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 2rem;
+}
+
+.login-header {
+	text-align: center;
+}
+.login-header h1 {
+	margin: 0 0 0.5rem 0;
+	font-size: 2rem;
+	color: #1f2937;
+}
+.login-subtitle {
+	margin: 0;
+	color: var(--muted);
+	font-size: 1rem;
+}
 
 .login-status {
 	padding: 0.75rem 1rem;
@@ -363,71 +414,6 @@
 	background: white;
 	border: 1px solid #e5e7eb;
 	cursor: pointer;
-}
-
-/* Animated circular logout button */
-.Btn {
-	display: flex;
-	align-items: center;
-	justify-content: flex-start;
-	width: 45px;
-	height: 45px;
-	border: none;
-	border-radius: 50%;
-	cursor: pointer;
-	position: relative;
-	overflow: hidden;
-	transition-duration: 0.3s;
-	box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.199);
-	background-color: rgb(255, 65, 65);
-}
-
-.Btn .sign {
-	width: 100%;
-	transition-duration: 0.3s;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.Btn .sign svg {
-	width: 17px;
-}
-.Btn .sign svg path {
-	fill: white;
-}
-.Btn .text {
-	position: absolute;
-	right: 0%;
-	width: 0%;
-	opacity: 0;
-	color: white;
-	font-size: 1.2em;
-	font-weight: 600;
-	transition-duration: 0.3s;
-}
-.Btn:hover {
-	width: 125px;
-	border-radius: 40px;
-	transition-duration: 0.3s;
-}
-.Btn:hover .sign {
-	width: 30%;
-	transition-duration: 0.3s;
-	padding-left: 20px;
-}
-.Btn:hover .text {
-	opacity: 1;
-	width: 70%;
-	transition-duration: 0.3s;
-	padding-right: 10px;
-}
-.Btn:active {
-	transform: translate(2px, 2px);
-}
-
-/* Ensure nav-specific spacing doesn't collapse the circular button */
-.nav-actions .Btn {
-	margin-left: 0.25rem;
 }
 
 .history-section {
