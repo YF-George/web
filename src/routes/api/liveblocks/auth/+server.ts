@@ -15,7 +15,7 @@ async function getLiveblocksInstance(): Promise<Liveblocks | null> {
 	) {
 		try {
 			// 動態 import 僅在需要時執行，避免在 production 引入 dotenv
-			 
+
 			await import('dotenv').then((mod) => mod.config()).catch(() => {});
 		} catch {
 			// 忽略任何載入錯誤，繼續依賴環境變數
