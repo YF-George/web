@@ -1,19 +1,12 @@
 import type { Handle } from '@sveltejs/kit';
+import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
 
-// 嘗試動態載入 Speed Insights，避免 build 時解析失敗
-(async () => {
-	const spec = '@vercel/speed-insights/sveltekit';
-	try {
-		const mod = await import(spec as any);
-		if (mod && typeof (mod as any).injectSpeedInsights === 'function') {
-			(mod as any).injectSpeedInsights();
-		}
-	} catch (e) {
-		// 模組不可用或不支援當前環境，忽略
-		// 這樣可以讓部署在不支援 Speed Insights 的環境時仍然通過 build
-	}
-})();
+// 在 SvelteKit 的 server hook 中注入 Vercel Speed Insights
+// 這會讓 Speed Insights 能夠在 edge / server 環境攔截請求並收集性能指標。
+// 如需更多設定，可參考 @vercel/speed-insights 的文件。
+injectSpeedInsights();
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// 目前不對請求進行額外處理，直接交由 SvelteKit 處理。
 	return resolve(event);
 };
