@@ -1,5 +1,6 @@
-﻿<script lang="ts">
+<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
@@ -24,7 +25,7 @@
 		changeLog?: ChangeLog[]; // 該團隊的變動紀錄
 	}
 
-	// Liveblocks Storage 型別（符合 Lson 規範）
+	// Liveblocks 儲存層型別（符合 Lson 規範）
 	type LiveGroupMember = {
 		profession: string;
 		isDriver: boolean;
@@ -65,9 +66,43 @@
 		details: string; // 詳細描述
 	}
 
+	// ---- 常數與共用工具 ----
 	const GROUP_SIZE = 10;
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
-	const PENDING_UPDATE_DELAY = 3000; // 等待 1 秒來合併策錦記錄
+	const PENDING_UPDATE_DELAY = 3000; // 等待 3 秒合併多次輸入，減少紀錄雜訊
+
+	// 將欄位對應為中文標籤，供變更紀錄使用
+	const FIELD_LABELS: Record<string, string> = {
+		profession: '職能',
+		isDriver: '隊長',
+		isHelper: '幫打',
+		playerId: '玩家 ID',
+		gearScore: '裝分',
+		departureDate: '發車日期',
+		departureTime: '發車時間'
+	};
+
+	// 產生 10 人的預設成員列表（坦/奶/輸出各一，其他為輸出）
+	function buildDefaultMembers(): GroupMember[] {
+		return Array.from({ length: GROUP_SIZE }, (_, i) => ({
+			profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
+			isDriver: false,
+			isHelper: false,
+			playerId: '',
+			gearScore: ''
+		}));
+	}
+
+	// 建立一個空團隊，並可選擇帶入初始變更紀錄
+	function createEmptyGroup(id: string, changeLogEntry?: ChangeLog): LocalGroup {
+		return {
+			id,
+			members: buildDefaultMembers(),
+			departureDate: '',
+			departureTime: '',
+			changeLog: changeLogEntry ? [changeLogEntry] : []
+		};
+	}
 
 	interface PendingUpdate {
 		groupId: string;
@@ -78,6 +113,8 @@
 		timeout?: ReturnType<typeof setTimeout>;
 	}
 
+	// ---- 連線與狀態 ----
+	// Liveblocks 連線物件與在線名單
 	let others: Array<unknown> = [];
 	let leave: (() => void) | null = null;
 	let roomName = 'my-room';
@@ -85,35 +122,21 @@
 
 	let status = '';
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
-	let pendingUpdates = new Map<string, PendingUpdate>(); // 追蹤未提交的詳細変拍
+	let pendingUpdates = new Map<string, PendingUpdate>(); // 合併頻繁編輯再寫入紀錄
 	let gameId = '';
 	let uid = '';
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
 
-	// local tab state for this page: 'forms' | 'history'
+	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
 
-	let groups: LocalGroup[] = [
-		{
-			id: '1',
-			members: Array.from({ length: GROUP_SIZE }, (_, i) => ({
-				profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
-				isDriver: false,
-				isHelper: false,
-				playerId: '',
-				gearScore: ''
-			})),
-			departureDate: '',
-			departureTime: '',
-			changeLog: []
-		}
-	];
+	const initialGroup = createEmptyGroup('1');
+	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
+	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
 
-	let activeGroupId = '1';
-
-	// Liveblocks Storage 初始化與同步
+	// Liveblocks 儲存層初始化與同步
 	let storageInitialized = false;
 	let storageRoot: LiveObject<LiveRoot> | null = null;
 
@@ -153,6 +176,8 @@
 		});
 	}
 
+	// Push local state into Liveblocks storage once initialized
+	// 儲存初始化後，將本地資料寫回 Liveblocks
 	function syncLocalGroupsToStorage() {
 		if (!storageInitialized || !storageRoot) return;
 		try {
@@ -163,6 +188,7 @@
 		}
 	}
 
+	// 加入房間、串接 presence 與 storage 訂閱，並在卸載時清理
 	onMount(async () => {
 		// 依路由參數設定房間名稱
 		const unsubPage = page.subscribe((p) => {
@@ -179,6 +205,7 @@
 		});
 
 		try {
+			// 儲存根節點包含共享的團隊清單
 			const { root } = await room.getStorage();
 			storageRoot = root as unknown as LiveObject<LiveRoot>;
 			storageInitialized = true;
@@ -196,6 +223,8 @@
 				console.error('storage groups init error', e);
 			}
 
+			// Liveblocks Storage -> 本地 state，保持雙向同步
+			// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
 			const unsubscribeStorage = room.subscribe(storageRoot!, () => {
 				try {
 					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
@@ -244,6 +273,7 @@
 		}
 	});
 
+	// 將緩衝中的編輯寫入 changelog，避免每次輸入都產生紀錄
 	function commitPendingUpdate(key: string) {
 		const pending = pendingUpdates.get(key);
 		if (!pending) return;
@@ -255,16 +285,7 @@
 			group.changeLog = [];
 		}
 
-		const fieldLabel =
-			{
-				profession: '職能',
-				isDriver: '隊長',
-				isHelper: '幫打',
-				playerId: '玩家 ID',
-				gearScore: '裝分',
-				departureDate: '發車日期',
-				departureTime: '發車時間'
-			}[pending.field] || pending.field;
+		const fieldLabel = FIELD_LABELS[pending.field] || pending.field;
 
 		let action = '更新成員';
 		let details = '';
@@ -293,11 +314,13 @@
 			...(group.changeLog || [])
 		].slice(0, MAX_CHANGELOG_ENTRIES);
 
-		groups = groups; // Trigger reactivity
+		groups = groups; // 觸發 Svelte 反應式更新
 		pendingUpdates.delete(key);
 	}
 
+	// 驗證遊戲 ID / 密碼，成功後切換登入狀態
 	async function handleLogin() {
+		if (!browser) return; // SSR 不呼叫 fetch，僅在瀏覽器執行
 		if (!gameId.trim()) {
 			status = '❌ 請輸入遊戲 ID';
 			setTimeout(() => (status = ''), 2000);
@@ -331,6 +354,7 @@
 		}
 	}
 
+	// 重置登入狀態，並將未寫入的 pending 更新刷入 changelog
 	function logout() {
 		isLoggedIn = false;
 		isAdmin = false;
@@ -343,25 +367,12 @@
 
 		gameId = '';
 		uid = '';
-		groups = [
-			{
-				id: '1',
-				members: Array.from({ length: GROUP_SIZE }, (_, i) => ({
-					profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
-					isDriver: false,
-					isHelper: false,
-					playerId: '',
-					gearScore: ''
-				})),
-				departureDate: '',
-				departureTime: '',
-				changeLog: []
-			}
-		];
-		activeGroupId = '1';
+		groups = [createEmptyGroup('1')];
+		activeGroupId = groups[0].id;
 		pendingUpdates.clear();
 	}
 
+	// 管理員新增團隊，並寫入「建立團隊」紀錄
 	function addNewGroup() {
 		if (!isAdmin) {
 			status = '❌ 只有管理員可以添加團隊';
@@ -371,37 +382,23 @@
 		// 找出最大的 ID 號碼，然後 +1
 		const maxId = groups.reduce((max, g) => Math.max(max, parseInt(g.id) || 0), 0);
 		const newId = (maxId + 1).toString();
-		groups = [
-			...groups,
-			{
-				id: newId,
-				members: Array.from({ length: GROUP_SIZE }, (_, i) => ({
-					profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
-					isDriver: false,
-					isHelper: false,
-					playerId: '',
-					gearScore: ''
-				})),
-				departureDate: '',
-				departureTime: '',
-				changeLog: [
-					{
-						id: crypto.randomUUID(),
-						timestamp: new Date(),
-						gameId,
-						action: '建立團隊',
-						details: `團隊建立`
-					}
-				]
-			}
-		];
-		activeGroupId = newId;
+		const creationLog: ChangeLog = {
+			id: crypto.randomUUID(),
+			timestamp: new Date(),
+			gameId,
+			action: '建立團隊',
+			details: '團隊建立'
+		};
+		const newGroup = createEmptyGroup(newId, creationLog);
+		groups = [...groups, newGroup];
+		activeGroupId = newGroup.id;
 		renumberGroups();
 
-		// 同步到 Storage
+		// 同步到儲存層
 		syncLocalGroupsToStorage();
 	}
 
+	// 管理員刪除團隊，會先記錄刪除事件
 	function deleteGroup(groupId: string) {
 		if (!isAdmin) {
 			status = '❌ 只有管理員可以刪除團隊';
@@ -430,11 +427,11 @@
 		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || '1';
 		renumberGroups();
 
-		// 同步到 Storage
+		// 同步到儲存層
 		syncLocalGroupsToStorage();
 	}
 
-	// 重新編號所有團隊，從 1 開始
+	// 重新編號所有團隊，從 1 開始並保留活躍索引
 	function renumberGroups() {
 		const currentActiveIndex = groups.findIndex((g) => g.id === activeGroupId);
 		groups = groups.map((group, index) => ({
@@ -448,10 +445,11 @@
 			activeGroupId = groups[0]?.id || '1';
 		}
 
-		// 同步到 Storage（確保 ID 連號變更被覆蓋）
+		// 同步到儲存層（確保 ID 連號變更被覆蓋）
 		syncLocalGroupsToStorage();
 	}
 
+	// 成員/團隊欄位共用的更新入口，會啟用延遲寫入的 pending 更新
 	function updateGroupField(
 		groupId: string,
 		index: number | undefined,
@@ -471,7 +469,7 @@
 				if (oldValue !== value) {
 					const key = `${groupId}-${field}`;
 
-					// 清除舊的 timeout
+					// 清除舊的計時器
 					if (pendingUpdates.has(key)) {
 						clearTimeout(pendingUpdates.get(key)!.timeout);
 					}
@@ -488,6 +486,8 @@
 					pendingUpdates.set(key, pending);
 				}
 			}
+
+			syncLocalGroupsToStorage();
 			return;
 		}
 
@@ -502,7 +502,7 @@
 		if (oldMember) {
 			const key = `${groupId}-${index}-${field}`;
 
-			// 清除舊的 timeout
+			// 清除舊的計時器
 			if (pendingUpdates.has(key)) {
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
@@ -520,7 +520,7 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到 Storage（成員層級欄位變更）
+		// 同步到儲存層（成員層級欄位變更）
 		syncLocalGroupsToStorage();
 	}
 
@@ -534,7 +534,7 @@
 		if (oldDate !== value) {
 			const key = `date-${groupId}`;
 
-			// 清除舊的 timeout
+			// 清除舊的計時器
 			if (pendingUpdates.has(key)) {
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
@@ -550,7 +550,7 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到 Storage（發車日期變更）
+		// 同步到儲存層（發車日期變更）
 		syncLocalGroupsToStorage();
 	}
 
@@ -560,7 +560,7 @@
 		if (oldTime !== value) {
 			const key = `time-${groupId}`;
 
-			// 清除舊的 timeout
+			// 清除舊的計時器
 			if (pendingUpdates.has(key)) {
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
@@ -576,10 +576,11 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到 Storage（發車時間變更）
+		// 同步到儲存層（發車時間變更）
 		syncLocalGroupsToStorage();
 	}
 
+	// 使用 Zeller 演算法由 YYYY-MM-DD 推算星期
 	function getGroupWeekday(g: LocalGroup) {
 		const d = (g.departureDate || '').trim();
 		if (!d) return '';
@@ -688,10 +689,7 @@
 {:else}
 	<div class="container">
 		<header>
-			<div
-				class="online-status"
-				style="position: absolute; top: 1rem; right: 1rem; background: rgba(0, 20, 40, 0.8); padding: 0.5rem 1rem; border: 1px solid #00ff9d; border-radius: 4px; color: #00ff9d; font-family: monospace; z-index: 100;"
-			>
+			<div class="online-status" aria-live="polite" title="其他線上使用者數量">
 				其他線上人數: {others.length}
 			</div>
 			<nav class="main-nav" aria-label="主要導覽">
@@ -721,7 +719,7 @@
 					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
 			</nav>
-			<!-- header-content removed: user info moved into nav -->
+			<!-- 頂部區塊：使用者資訊已移至導覽列 -->
 		</header>
 
 		{#if status}
@@ -1038,3 +1036,35 @@
 		</section>
 	</div>
 {/if}
+
+<style>
+	/* 固定右上角顯示其他線上人數，並在小螢幕下縮小樣式 */
+	.online-status {
+		position: fixed;
+		top: 1rem;
+		right: 1rem;
+		background: rgba(0, 20, 40, 0.9);
+		padding: 0.5rem 0.9rem;
+		border: 1px solid #00ff9d;
+		border-radius: 6px;
+		color: #00ff9d;
+		font-family:
+			ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace;
+		z-index: 1100;
+		box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.95rem;
+	}
+
+	/* 小螢幕調整：靠邊、減少 padding 與文字大小 */
+	@media (max-width: 640px) {
+		.online-status {
+			top: 0.5rem;
+			right: 0.5rem;
+			padding: 0.3rem 0.6rem;
+			font-size: 0.85rem;
+		}
+	}
+</style>

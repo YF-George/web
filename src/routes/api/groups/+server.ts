@@ -31,6 +31,10 @@ function serverPseudonymHash(pseudonym: string) {
 	return crypto.createHmac('sha256', salt).update(pseudonym).digest('hex');
 }
 
+function safeString(value: unknown): string {
+	return typeof value === 'string' ? value.trim() : '';
+}
+
 async function getGroups(formId: string): Promise<GroupEntry[]> {
 	const key = `form:${formId}:groups`;
 	const groups = await kv.get<GroupEntry[]>(key);
@@ -45,7 +49,7 @@ async function addGroup(formId: string, entry: GroupEntry): Promise<void> {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const formId = url.searchParams.get('formId');
+	const formId = safeString(url.searchParams.get('formId'));
 	if (!formId) {
 		return new Response(JSON.stringify({ error: 'missing formId' }), { status: 400 });
 	}
@@ -66,7 +70,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		members?: GroupMember[];
 	};
 
-	if (!formId || !Array.isArray(members)) {
+	const cleanFormId = safeString(formId);
+	if (!cleanFormId || !Array.isArray(members)) {
 		return new Response(JSON.stringify({ error: 'missing formId or members' }), { status: 400 });
 	}
 
@@ -78,17 +83,28 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	// Basic validation for each member
 	for (const m of members) {
-		if (!m || !m.name || !m.profession || !m.weapon) {
+		if (!m) {
 			return new Response(JSON.stringify({ error: 'member fields cannot be empty' }), {
 				status: 400
 			});
 		}
-		if (Number.isNaN(Number(m.gearScore))) {
+
+		const name = safeString(m.name);
+		const profession = safeString(m.profession);
+		const weapon = safeString(m.weapon);
+		const gearScore = Number(m.gearScore);
+
+		if (!name || !profession || !weapon) {
+			return new Response(JSON.stringify({ error: 'member fields cannot be empty' }), {
+				status: 400
+			});
+		}
+		if (Number.isNaN(gearScore)) {
 			return new Response(JSON.stringify({ error: 'gearScore must be a number' }), { status: 400 });
 		}
 	}
 
-	let cleanName = displayName || '';
+	let cleanName = safeString(displayName);
 	if (cleanName) {
 		if (!validateDisplayName(cleanName)) {
 			return new Response(JSON.stringify({ error: 'invalid displayName' }), { status: 400 });
@@ -97,23 +113,23 @@ export const POST: RequestHandler = async ({ request }) => {
 	}
 
 	const chosenName = cleanName || 'Anonymous';
-	const pseudonym_hash = serverPseudonymHash(pseudonym || chosenName);
+	const pseudonym_hash = serverPseudonymHash(safeString(pseudonym) || chosenName);
 
 	const entry: GroupEntry = {
 		id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9),
-		formId,
+		formId: cleanFormId,
 		displayName: cleanName || undefined,
 		pseudonym_hash,
 		members: members.map((m) => ({
-			name: m.name,
-			profession: m.profession,
-			weapon: m.weapon,
+			name: safeString(m.name),
+			profession: safeString(m.profession),
+			weapon: safeString(m.weapon),
 			gearScore: Number(m.gearScore)
 		})),
 		created_at: new Date().toISOString()
 	};
 
-	await addGroup(formId, entry);
+	await addGroup(cleanFormId, entry);
 
 	return new Response(JSON.stringify({ ok: true, id: entry.id }), {
 		status: 201,
