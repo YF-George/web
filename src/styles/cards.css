@@ -248,9 +248,3 @@
 	background: linear-gradient(135deg, #fb7185, #f43f5e);
 	border-color: transparent;
 }
-.weekday.sun {
-	/* 星期日-specific if needed */
-}
-.weekday.sat {
-	/* 星期六-specific if needed */
-}
