@@ -797,7 +797,7 @@
 					</li>
 				</ul>
 				<div class="nav-actions">
-					<span class="nav-user">{isAdmin ? '千羽夜' : gameId}</span>
+					<span class="nav-user">千羽夜</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
