@@ -160,9 +160,10 @@
 	let storageRoot: LiveObject<LiveRoot> | null = null;
 
 	// --- 每週重製 changelog 機制（在 storage 初始化後執行） ---
-	function getMostRecentMondayMidnight(now = new Date()) {
+	function getMostRecentMondayMidnight(now?: Date) {
 		// 回傳當週（或最近）星期一 00:00 的 Date（以本地時間計算）
-		const d = new Date(now);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		const d = new Date(now ?? Date.now());
 		const day = d.getDay(); // 0 (Sun) - 6 (Sat)
 		// 週一為 1
 		const diffToMonday = (day + 6) % 7; // days since last Monday
@@ -175,7 +176,9 @@
 		if (!storageRoot || !room) return;
 
 		try {
-			const lastResetIso = (storageRoot as any).get('lastChangelogReset') as string | undefined;
+			const lastResetIso = (storageRoot as unknown as { get(key: string): unknown }).get(
+				'lastChangelogReset'
+			) as string | undefined;
 			const lastReset = lastResetIso ? new Date(lastResetIso) : new Date(0);
 			const now = new Date();
 			const recentMonday = getMostRecentMondayMidnight(now);
@@ -186,26 +189,26 @@
 			}
 
 			// 進行重製：將每個 group.changeLog 清空，並更新 lastChangelogReset
-			const liveGroups = storageRoot.get('groups') as LiveList<LiveObject<any>> | undefined;
+			const liveGroups = storageRoot.get('groups') as LiveList<LiveObject<unknown>> | undefined;
 			if (!liveGroups) return;
 
 			// 使用 room 的 storage transaction（若可用）或直接 set
-			// 先建立新的 LiveList（空清單）
-			const emptyList = new LiveList<LiveObject<any>>([]);
-
 			// 更新每個 group 的 changeLog
 			for (let i = 0; i < liveGroups.length; i++) {
-				const g = liveGroups.get(i) as LiveObject<any> | undefined;
+				const g = liveGroups.get(i) as LiveObject<unknown> | undefined;
 				if (!g) continue;
 				try {
-					g.set('changeLog', new LiveList<LiveObject<any>>([]));
+					g.set('changeLog', new LiveList<LiveObject<unknown>>([]));
 				} catch (e) {
 					console.warn('resetChangeLogs: failed to set changeLog for group', i, e);
 				}
 			}
 
 			// 更新 lastChangelogReset
-			(storageRoot as any).set('lastChangelogReset', new Date().toISOString());
+			(storageRoot as unknown as { set(key: string, value: unknown): void }).set(
+				'lastChangelogReset',
+				new Date().toISOString()
+			);
 			console.info('changeLog reset performed at', new Date().toISOString());
 		} catch (e) {
 			console.error('resetChangeLogsIfNeeded error', e);
@@ -456,8 +459,9 @@
 				}
 			}
 		}
-		// 去重（以 playerId 為主；若沒有 playerId 則保留首筆）
+		//  去重（以 playerId 為主；若沒有 playerId 則保留首筆）
 		const deduped: GroupMember[] = [];
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const seen = new Set<string>();
 		for (const m of fixedMembers) {
 			const key = m.playerId || crypto.randomUUID();
