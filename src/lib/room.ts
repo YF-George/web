@@ -1,7 +1,11 @@
 import { createClient } from '@liveblocks/client';
 
-const client = createClient({
-	publicApiKey: 'pk_dev_RuPZplRdpmgk6Wzpo1L08Y9XZlbbxvaZkvaRgmdValbNRWm3pnAtUFx5P_0R_EhS'
+// 使用後端驗證端點，避免在前端暴露 Secret
+export const client = createClient({
+	authEndpoint: '/api/liveblocks/auth'
 });
 
 export const { room, leave } = client.enterRoom('my-room');
+
+// 若需動態房間，可改為：
+// export const enterRoom = (name: string) => client.enterRoom(name);
