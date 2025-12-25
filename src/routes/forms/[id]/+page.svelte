@@ -292,7 +292,11 @@
 
 		if (pending.index !== undefined) {
 			// 成員詳細記錄
-			details = `成員 ${pending.index + 1} 的「${fieldLabel}」更新為「${pending.newValue}」`;
+			// 使用者與舊/新值一起記錄（範例：XXX(登入暱稱) 將 成員2的「玩家 ID」(原值) 更新為(新值)）
+			const actor = gameId || '匿名';
+			const oldVal = String(pending.oldValue ?? '');
+			const newVal = String(pending.newValue ?? '');
+			details = `${actor}(${actor}) 將 成員 ${pending.index + 1} 的「${fieldLabel}」(${oldVal}) 更新為(${newVal})`;
 		} else {
 			// 團隊級欄位
 			if (pending.field === 'departureDate') {
@@ -300,7 +304,10 @@
 			} else if (pending.field === 'departureTime') {
 				action = '更新發車時間';
 			}
-			details = `「${fieldLabel}」更新為「${pending.newValue}」`;
+			const actor = gameId || '匿名';
+			const oldVal = String(pending.oldValue ?? '');
+			const newVal = String(pending.newValue ?? '');
+			details = `${actor}(${actor}) 將 「${fieldLabel}」(${oldVal}) 更新為(${newVal})`;
 		}
 
 		group.changeLog = [
