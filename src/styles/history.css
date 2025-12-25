@@ -1,0 +1,15 @@
+.history-entry {
+	@apply flex flex-wrap items-center gap-3 rounded-lg border-l-4 border-indigo-400 bg-white px-3 py-2 text-sm transition hover:shadow-md;
+}
+
+.history-time {
+	@apply text-xs whitespace-nowrap text-slate-400;
+}
+
+.history-detail {
+	@apply flex-1 text-slate-600;
+}
+
+.history-user {
+	@apply text-xs text-slate-400;
+}

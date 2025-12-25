@@ -1,0 +1,13 @@
+:root {
+	--bg: #f5f7fb;
+}
+
+* {
+	font-family: 'Chiron GoRound TC', system-ui, sans-serif;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+}

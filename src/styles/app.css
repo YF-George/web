@@ -1,0 +1,8 @@
+/* app.css — 載入 Tailwind 與所有子樣式（作為全站樣式入口） */
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@import './base.css';
+@import './background.css';
+@import './components.css';
+@import './history.css';
