@@ -1,48 +1,47 @@
-import { kv } from '@vercel/kv';
-import Ably from 'ably';
 import type { RequestHandler } from './$types';
+import crypto from 'crypto';
+import { kv } from '@vercel/kv';
 
-interface ChangeLog {
-	id: string;
-	timestamp: string;
-	gameId: string;
-	action: string;
-	details: string;
+interface GroupMember {
+	name: string;
+	profession: string;
+	weapon: string;
+	gearScore: number;
 }
 
-interface LocalGroup {
+interface GroupEntry {
 	id: string;
-	members: Array<{
-		profession: string;
-		isDriver: boolean;
-		isHelper: boolean;
-		playerId: string;
-		gearScore: string | number;
-	}>;
-	departureTime?: string;
-	departureDate?: string;
-	dungeonName?: string;
-	level?: string;
-	gearScoreReq?: string;
-	contentType?: string;
-	changeLog?: ChangeLog[];
+	formId: string;
+	displayName?: string;
+	pseudonym_hash?: string;
+	members: GroupMember[];
+	created_at: string;
 }
 
-const keyFor = (formId: string) => `teams:${formId}`;
+function sanitizeDisplayName(name: string): string {
+	return name.trim().slice(0, 50);
+}
 
-async function loadGroups(formId: string): Promise<LocalGroup[]> {
-	const hash = await kv.hgetall<Record<string, LocalGroup | string>>(keyFor(formId));
-	if (!hash) return [];
-	return Object.values(hash).map((val) => {
-		if (typeof val === 'string') {
-			try {
-				return JSON.parse(val) as LocalGroup;
-			} catch (err) {
-				console.warn('parse group failed', err);
-			}
-		}
-		return val as LocalGroup;
-	});
+function validateDisplayName(name: string): boolean {
+	return name.trim().length > 0 && name.trim().length <= 50;
+}
+
+function serverPseudonymHash(pseudonym: string) {
+	const salt = process.env.PSEUDONYM_SALT || 'dev-fallback-salt';
+	return crypto.createHmac('sha256', salt).update(pseudonym).digest('hex');
+}
+
+async function getGroups(formId: string): Promise<GroupEntry[]> {
+	const key = `form:${formId}:groups`;
+	const groups = await kv.get<GroupEntry[]>(key);
+	return groups || [];
+}
+
+async function addGroup(formId: string, entry: GroupEntry): Promise<void> {
+	const key = `form:${formId}:groups`;
+	const groups = await getGroups(formId);
+	groups.push(entry);
+	await kv.set(key, groups);
 }
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -51,7 +50,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		return new Response(JSON.stringify({ error: 'missing formId' }), { status: 400 });
 	}
 
-	const groups = await loadGroups(formId);
+	const groups = await getGroups(formId);
 	return new Response(JSON.stringify({ groups }), {
 		status: 200,
 		headers: { 'content-type': 'application/json' }
@@ -60,40 +59,64 @@ export const GET: RequestHandler = async ({ url }) => {
 
 export const POST: RequestHandler = async ({ request }) => {
 	const body = await request.json().catch(() => ({}));
-	const { formId, groups } = body as { formId?: string; groups?: LocalGroup[] };
+	const { formId, displayName, pseudonym, members } = body as {
+		formId?: string;
+		displayName?: string;
+		pseudonym?: string;
+		members?: GroupMember[];
+	};
 
-	if (!formId || !Array.isArray(groups)) {
-		return new Response(JSON.stringify({ error: 'missing formId or groups' }), { status: 400 });
+	if (!formId || !Array.isArray(members)) {
+		return new Response(JSON.stringify({ error: 'missing formId or members' }), { status: 400 });
 	}
 
-	// 以 Hash 方式存每一團，確保各團資料獨立
-	const toSave = Object.fromEntries(groups.map((g) => [g.id, g]));
-	await kv.hset(keyFor(formId), toSave);
-
-	// 移除已刪除的團隊資料
-	const existing = (await kv.hkeys(keyFor(formId))) || [];
-	const incomingIds = new Set(groups.map((g) => g.id));
-	const toDelete = existing.filter((id) => !incomingIds.has(id));
-	if (toDelete.length) {
-		await kv.hdel(keyFor(formId), ...toDelete);
+	if (members.length !== 10) {
+		return new Response(JSON.stringify({ error: 'members must be exactly 10 entries' }), {
+			status: 400
+		});
 	}
 
-	// 發布即時更新到 Ably（若已設定 ABLY_API_KEY）
-	const ablyKey = process.env.ABLY_API_KEY;
-	if (ablyKey) {
-		try {
-			const rest = new Ably.Rest({ key: ablyKey });
-			await rest.channels.get(keyFor(formId)).publish('groups', groups);
-		} catch (err) {
-			console.warn('Ably 發布失敗:', err);
+	// Basic validation for each member
+	for (const m of members) {
+		if (!m || !m.name || !m.profession || !m.weapon) {
+			return new Response(JSON.stringify({ error: 'member fields cannot be empty' }), {
+				status: 400
+			});
+		}
+		if (Number.isNaN(Number(m.gearScore))) {
+			return new Response(JSON.stringify({ error: 'gearScore must be a number' }), { status: 400 });
 		}
 	}
 
-	// 注意：Liveblocks 的 broadcastEvent 由前端處理（見 publishLiveblocks 函數）
-	// 後端 Liveblocks SDK 不支援直接 broadcast，需透過前端客戶端
+	let cleanName = displayName || '';
+	if (cleanName) {
+		if (!validateDisplayName(cleanName)) {
+			return new Response(JSON.stringify({ error: 'invalid displayName' }), { status: 400 });
+		}
+		cleanName = sanitizeDisplayName(cleanName);
+	}
 
-	return new Response(JSON.stringify({ ok: true }), {
-		status: 200,
+	const chosenName = cleanName || 'Anonymous';
+	const pseudonym_hash = serverPseudonymHash(pseudonym || chosenName);
+
+	const entry: GroupEntry = {
+		id: Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9),
+		formId,
+		displayName: cleanName || undefined,
+		pseudonym_hash,
+		members: members.map((m) => ({
+			name: m.name,
+			profession: m.profession,
+			weapon: m.weapon,
+			gearScore: Number(m.gearScore)
+		})),
+		created_at: new Date().toISOString()
+	};
+
+	await addGroup(formId, entry);
+
+	return new Response(JSON.stringify({ ok: true, id: entry.id }), {
+		status: 201,
 		headers: { 'content-type': 'application/json' }
 	});
 };

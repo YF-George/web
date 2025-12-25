@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
-		"build": "svelte-kit sync && vite build",
+		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "husky",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -46,8 +46,6 @@
 	},
 	"dependencies": {
 		"@liveblocks/client": "^3.12.1",
-		"@liveblocks/node": "^3.12.1",
-		"@vercel/kv": "^3.0.0",
-		"ably": "^2.16.0"
+		"@vercel/kv": "^3.0.0"
 	}
 }

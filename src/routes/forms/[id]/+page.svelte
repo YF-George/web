@@ -1,10 +1,6 @@
 ﻿<script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { page } from '$app/stores';
-	import { SvelteMap } from 'svelte/reactivity';
-	import type { Json } from '@liveblocks/client';
-	import { getChannel } from '$lib/realtime';
-	import { enterRoom, leaveRoom } from '$lib/liveblocks';
+	import { room } from '$lib/room';
 
 	interface GroupMember {
 		profession: string;
@@ -36,6 +32,7 @@
 
 	const GROUP_SIZE = 10;
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
+	const PENDING_UPDATE_DELAY = 3000; // 等待 1 秒來合併策錦記錄
 
 	interface PendingUpdate {
 		groupId: string;
@@ -46,22 +43,24 @@
 		timeout?: ReturnType<typeof setTimeout>;
 	}
 
+	let others = room.getOthers();
+
+	const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
+		others = updatedOthers;
+	});
+
+	onDestroy(() => {
+		unsubscribeOthers();
+	});
+
 	let status = '';
-	let pendingUpdates = new SvelteMap<string, PendingUpdate>(); // 追蹤未提交的詳細変拍
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	let pendingUpdates = new Map<string, PendingUpdate>(); // 追蹤未提交的詳細変拍
 	let gameId = '';
 	let uid = '';
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
-	let formId = $page.params.id ?? '';
-	$: formId = $page.params.id ?? '';
-	let refreshInterval: ReturnType<typeof setInterval> | null = null;
-	let isSyncing = false; // 防止同步衝突
-
-	// 即時通道（Ably）：若未設定 PUBLIC_ABLY_KEY 則為 null
-	let rtChannel: ReturnType<typeof getChannel> | null = null;
-	// Liveblocks 房間（若設定 LIVEBLOCKS_SECRET_KEY 且 auth 通過）
-	let lbRoom: ReturnType<typeof enterRoom> | null = null;
 
 	// local tab state for this page: 'forms' | 'history'
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -83,229 +82,6 @@
 	];
 
 	let activeGroupId = '1';
-
-	// 資料持久化：以表單路由 id 為 key（所有使用者共享）
-	const getStorageKey = () => (formId ? `teams-${formId}` : null);
-
-	// 自動刷新函數
-	function startAutoRefresh() {
-		// 若有即時通道，禁用輪詢（不啟動 100ms）
-		if (rtChannel) return;
-		if (refreshInterval) return;
-		// 沒有即時通道時才回退輪詢（仍可改為更長間隔，或完全停用）
-		// 需求：不要 100ms；此處改為不啟動任何輪詢。
-		return;
-	}
-
-	function stopAutoRefresh() {
-		if (refreshInterval) {
-			clearInterval(refreshInterval);
-			refreshInterval = null;
-		}
-	}
-
-	onDestroy(() => {
-		stopAutoRefresh();
-		// 取消訂閱即時通道
-		rtChannel?.unsubscribe();
-		rtChannel = null;
-		// 離開 Liveblocks 房間
-		leaveRoom();
-		lbRoom = null;
-	});
-
-	function setupRealtime() {
-		// 即時頻道名稱需與後端一致：teams:{formId}
-		if (!formId) return false;
-		const channelKey = `teams:${formId}`;
-		const ch = getChannel(channelKey);
-		if (!ch) return false;
-		rtChannel = ch;
-		ch.subscribe('groups', (msg) => {
-			const serverGroups = (msg.data as LocalGroup[]).map((g) => ({
-				...g,
-				changeLog:
-					g.changeLog?.map((log) => ({
-						...log,
-						timestamp: new Date(log.timestamp as unknown as string)
-					})) || []
-			}));
-			const serverHash = JSON.stringify(serverGroups);
-			const currentHash = JSON.stringify(groups);
-			if (serverHash !== currentHash) {
-				// 使用展開運算子確保觸發 Svelte 響應性
-				groups = [...serverGroups];
-				saveGroupsToLocalStorage();
-			}
-		});
-		return true;
-	}
-
-	function setupLiveblocks() {
-		if (!formId) return false;
-		lbRoom = enterRoom(`teams:${formId}`);
-		// 訂閱 Liveblocks 事件
-		lbRoom.subscribe('event', ({ event }) => {
-			// 事件格式：{ type: string, data: unknown }
-			const ev = event as { type: string; data: unknown };
-			if (!ev || ev.type !== 'groups' || !Array.isArray(ev.data)) return;
-			const serverGroups = (ev.data as LocalGroup[]).map((g) => ({
-				...g,
-				changeLog:
-					g.changeLog?.map((log) => ({
-						...log,
-						timestamp: new Date(log.timestamp as unknown as string)
-					})) || []
-			}));
-			const serverHash = JSON.stringify(serverGroups);
-			const currentHash = JSON.stringify(groups);
-			if (serverHash !== currentHash) {
-				// 使用展開運算子確保觸發 Svelte 響應性
-				groups = [...serverGroups];
-				saveGroupsToLocalStorage();
-			}
-		});
-		return true;
-	}
-
-	function publishRealtime(next: LocalGroup[]) {
-		if (!rtChannel) return;
-		const payload = next.map((g) => ({
-			...g,
-			changeLog:
-				g.changeLog?.map((log) => ({
-					...log,
-					timestamp:
-						log.timestamp instanceof Date
-							? log.timestamp.toISOString()
-							: (log.timestamp as unknown as string)
-				})) || []
-		}));
-		rtChannel.publish('groups', payload);
-	}
-
-	function publishLiveblocks(next: LocalGroup[]) {
-		if (!lbRoom) return;
-		const payload = next.map((g) => ({
-			...g,
-			changeLog:
-				g.changeLog?.map((log) => ({
-					...log,
-					timestamp:
-						log.timestamp instanceof Date
-							? log.timestamp.toISOString()
-							: (log.timestamp as unknown as string)
-				})) || []
-		}));
-		lbRoom.broadcastEvent({ type: 'groups', data: payload as unknown as Json });
-	}
-
-	async function saveGroupsToServer() {
-		if (!formId) return;
-		try {
-			await fetch('/api/groups', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					formId,
-					groups: groups.map((g) => ({
-						...g,
-						changeLog:
-							g.changeLog?.map((log) => ({
-								...log,
-								timestamp:
-									log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
-							})) || []
-					}))
-				})
-			});
-			// 發布到即時通道（若可用）
-			publishLiveblocks(groups);
-			publishRealtime(groups);
-		} catch (e) {
-			console.warn('無法儲存資料到伺服器:', e);
-		}
-	}
-
-	function saveGroupsToLocalStorage() {
-		const key = getStorageKey();
-		if (!key) return;
-		try {
-			localStorage.setItem(
-				key,
-				JSON.stringify(
-					groups.map((g) => ({
-						...g,
-						changeLog:
-							g.changeLog?.map((log) => ({
-								...log,
-								timestamp:
-									log.timestamp instanceof Date ? log.timestamp.toISOString() : log.timestamp
-							})) || []
-					}))
-				)
-			);
-			void saveGroupsToServer();
-		} catch (e) {
-			console.warn('無法儲存資料到 localStorage:', e);
-		}
-	}
-
-	async function loadGroupsFromServer() {
-		if (!formId || isSyncing) return false;
-		isSyncing = true;
-		try {
-			const response = await fetch(`/api/groups?formId=${encodeURIComponent(formId)}`);
-			if (!response.ok) throw new Error('server load failed');
-			const data = await response.json();
-			if (Array.isArray(data.groups) && data.groups.length > 0) {
-				const serverGroups = data.groups.map((g: LocalGroup) => ({
-					...g,
-					changeLog:
-						g.changeLog?.map((log: ChangeLog) => ({
-							...log,
-							timestamp: new Date(log.timestamp)
-						})) || []
-				}));
-
-				// 檢查是否有變更（避免不必要的重新渲染）
-				const serverHash = JSON.stringify(serverGroups);
-				const currentHash = JSON.stringify(groups);
-
-				if (serverHash !== currentHash) {
-					// 使用展開運算子確保觸發 Svelte 響應性
-					groups = [...serverGroups];
-					saveGroupsToLocalStorage();
-				}
-				return true;
-			}
-		} catch (e) {
-			console.warn('無法從伺服器載入資料:', e);
-		} finally {
-			isSyncing = false;
-		}
-		return false;
-	}
-
-	function loadGroupsFromLocalStorage() {
-		const key = getStorageKey();
-		if (!key) return;
-		try {
-			const saved = localStorage.getItem(key);
-			if (saved) {
-				groups = JSON.parse(saved).map((g: LocalGroup) => ({
-					...g,
-					changeLog:
-						g.changeLog?.map((log: ChangeLog) => ({
-							...log,
-							timestamp: new Date(log.timestamp)
-						})) || []
-				}));
-			}
-		} catch (e) {
-			console.warn('無法從 localStorage 載入資料:', e);
-		}
-	}
 
 	function commitPendingUpdate(key: string) {
 		const pending = pendingUpdates.get(key);
@@ -358,12 +134,11 @@
 
 		groups = groups; // Trigger reactivity
 		pendingUpdates.delete(key);
-		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	async function handleLogin() {
 		if (!gameId.trim()) {
-			status = '❌ 請輸入遊戲暱稱';
+			status = '❌ 請輸入遊戲 ID';
 			setTimeout(() => (status = ''), 2000);
 			return;
 		}
@@ -371,12 +146,10 @@
 		isLoading = true;
 
 		try {
-			const trimmedGameId = gameId.trim();
-			const trimmedUid = uid.trim();
 			const response = await fetch('/api/auth', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ gameId: trimmedGameId, uid: trimmedUid })
+				body: JSON.stringify({ gameId: gameId.trim(), uid: uid.trim() })
 			});
 
 			const result = await response.json();
@@ -384,38 +157,20 @@
 			if (result.success) {
 				isLoggedIn = true;
 				isAdmin = !!result.isAdmin;
-				gameId = trimmedGameId; // 正規化帳號，避免前後空白造成 key 不一致
-				uid = trimmedUid;
-				// 登入後優先載入共享資料，失敗則回退本地
-				const loadedFromServer = await loadGroupsFromServer();
-				if (!loadedFromServer) {
-					loadGroupsFromLocalStorage();
-				}
-				// 先嘗試 Liveblocks，其次 Ably，再次回退輪詢
-				const lbOk = setupLiveblocks();
-				if (!lbOk) {
-					const rtOk = setupRealtime();
-					if (!rtOk) {
-						startAutoRefresh();
-					}
-				}
-				status = '✅ 登入成功';
-				setTimeout(() => (status = ''), 2000);
 			} else {
 				status = `❌ ${result.error || '登入失敗'}`;
-				setTimeout(() => (status = ''), 2000);
+				setTimeout(() => (status = ''), 3000);
 			}
 		} catch (e) {
 			console.error(e);
 			status = '❌ 登入失敗，請檢查網路連線';
-			setTimeout(() => (status = ''), 2000);
+			setTimeout(() => (status = ''), 3000);
 		} finally {
 			isLoading = false;
 		}
 	}
 
 	function logout() {
-		stopAutoRefresh();
 		isLoggedIn = false;
 		isAdmin = false;
 
@@ -449,7 +204,7 @@
 	function addNewGroup() {
 		if (!isAdmin) {
 			status = '❌ 只有管理員可以添加團隊';
-			setTimeout(() => (status = ''), 2000);
+			setTimeout(() => (status = ''), 3000);
 			return;
 		}
 		// 找出最大的 ID 號碼，然後 +1
@@ -481,7 +236,6 @@
 		];
 		activeGroupId = newId;
 		renumberGroups();
-		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	function deleteGroup(groupId: string) {
@@ -511,7 +265,6 @@
 		groups = groups.filter((g) => g.id !== groupId);
 		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || '1';
 		renumberGroups();
-		saveGroupsToLocalStorage(); // 儲存資料
 	}
 
 	// 重新編號所有團隊，從 1 開始
@@ -553,16 +306,16 @@
 						clearTimeout(pendingUpdates.get(key)!.timeout);
 					}
 
-					// 立即提交變動
+					// 記錄未提交的變動
 					const pending: PendingUpdate = {
 						groupId,
 						field: field as string,
 						oldValue: oldValue || '',
-						newValue: value
+						newValue: value,
+						timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
 					};
 
 					pendingUpdates.set(key, pending);
-					commitPendingUpdate(key);
 				}
 			}
 			return;
@@ -584,17 +337,17 @@
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
 
-			// 立即提交變動
+			// 記錄未声紱的變動
 			const pending: PendingUpdate = {
 				groupId,
 				index,
 				field: field as string,
 				oldValue: oldMember[field as keyof GroupMember],
-				newValue: value
+				newValue: value,
+				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
 			};
 
 			pendingUpdates.set(key, pending);
-			commitPendingUpdate(key);
 		}
 	}
 
@@ -617,12 +370,11 @@
 				groupId,
 				field: 'departureDate',
 				oldValue: oldDate || '',
-				newValue: value
+				newValue: value,
+				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
 			};
 
 			pendingUpdates.set(key, pending);
-			commitPendingUpdate(key);
-			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
 
@@ -641,12 +393,11 @@
 				groupId,
 				field: 'departureTime',
 				oldValue: oldTime || '',
-				newValue: value
+				newValue: value,
+				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
 			};
 
 			pendingUpdates.set(key, pending);
-			commitPendingUpdate(key);
-			saveGroupsToLocalStorage(); // 儲存資料
 		}
 	}
 
@@ -720,11 +471,11 @@
 				}}
 			>
 				<label class="login-label">
-					<span class="login-label-text">遊戲暱稱 <span class="required">*</span></span>
+					<span class="login-label-text">遊戲 ID <span class="required">*</span></span>
 					<input
 						type="text"
 						class="login-input"
-						placeholder="請輸入您的遊戲暱稱"
+						placeholder="請輸入您的遊戲 ID"
 						value={gameId}
 						oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
 					/>
@@ -756,351 +507,355 @@
 		</div>
 	</div>
 {:else}
-	{#key formId}
-		<div class="container">
-			<header>
-				<nav class="main-nav" aria-label="主要導覽">
-					<ul class="nav-list">
-						<li class="nav-item">
-							<button
-								class="nav-link"
-								class:active={activeTab === 'forms'}
-								onclick={() => (activeTab = 'forms')}
-							>
-								填寫表單
-							</button>
-						</li>
-						<li class="nav-item">
-							<button
-								class="nav-link"
-								class:active={activeTab === 'history'}
-								onclick={() => (activeTab = 'history')}
-							>
-								更改紀錄
-							</button>
-						</li>
-					</ul>
-					<div class="nav-actions">
-						<span class="nav-user">{isAdmin ? `👑 ${gameId}` : gameId}</span>
-						<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
-						<button class="nav-logout" onclick={logout}>登出</button>
-					</div>
-				</nav>
-				<!-- header-content removed: user info moved into nav -->
-			</header>
-
-			{#if status}
-				<div class="toolbar">
-					<div
-						class="status"
-						class:error={status.includes('❌')}
-						class:success={status.includes('✅')}
-					>
-						{status}
-					</div>
+	<div class="container">
+		<header>
+			<div
+				class="online-status"
+				style="position: absolute; top: 1rem; right: 1rem; background: rgba(0, 20, 40, 0.8); padding: 0.5rem 1rem; border: 1px solid #00ff9d; border-radius: 4px; color: #00ff9d; font-family: monospace; z-index: 100;"
+			>
+				其他線上人數: {others.length}
+			</div>
+			<nav class="main-nav" aria-label="主要導覽">
+				<ul class="nav-list">
+					<li class="nav-item">
+						<button
+							class="nav-link"
+							class:active={activeTab === 'forms'}
+							onclick={() => (activeTab = 'forms')}
+						>
+							填寫表單
+						</button>
+					</li>
+					<li class="nav-item">
+						<button
+							class="nav-link"
+							class:active={activeTab === 'history'}
+							onclick={() => (activeTab = 'history')}
+						>
+							更改紀錄
+						</button>
+					</li>
+				</ul>
+				<div class="nav-actions">
+					<span class="nav-user">{isAdmin ? '👑 ' : ''}{isAdmin ? '千羽夜' : gameId}</span>
+					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
+					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
-			{/if}
+			</nav>
+			<!-- header-content removed: user info moved into nav -->
+		</header>
 
-			<section class="group-section">
-				<div class="tabs-header">
-					<div class="tabs">
-						{#each groups as group (group.id)}
-							<button
-								class="tab"
-								class:active={activeGroupId === group.id}
-								onclick={() => (activeGroupId = group.id)}
-							>
-								團隊 {group.id}
-								{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
-									<span
-										class="tab-close"
-										onclick={(e) => {
+		{#if status}
+			<div class="toolbar">
+				<div
+					class="status"
+					class:error={status.includes('❌')}
+					class:success={status.includes('✅')}
+				>
+					{status}
+				</div>
+			</div>
+		{/if}
+
+		<section class="group-section">
+			<div class="tabs-header">
+				<div class="tabs">
+					{#each groups as group (group.id)}
+						<button
+							class="tab"
+							class:active={activeGroupId === group.id}
+							onclick={() => (activeGroupId = group.id)}
+						>
+							團隊 {group.id}
+							{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
+								<span
+									class="tab-close"
+									onclick={(e) => {
+										e.stopPropagation();
+										deleteGroup(group.id);
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault();
 											e.stopPropagation();
 											deleteGroup(group.id);
-										}}
-										onkeydown={(e) => {
-											if (e.key === 'Enter' || e.key === ' ') {
-												e.preventDefault();
-												e.stopPropagation();
-												deleteGroup(group.id);
-											}
-										}}
-										role="button"
-										tabindex="0"
-										title="刪除此團隊"
-									>
-										×
-									</span>
-								{/if}
-							</button>
-						{/each}
-						{#if activeTab === 'forms' && isAdmin}
-							<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
-						{/if}
-					</div>
-				</div>
-				{#if activeTab === 'forms'}
-					{#if getActiveGroup()}
-						<div class="departure-time-row">
-							<label class="departure-label">
-								<input
-									class="departure-input departure-date"
-									type="date"
-									aria-label="發車日期"
-									value={getActiveGroup().departureDate ?? ''}
-									onchange={(e) =>
-										updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input departure-time"
-									type="time"
-									aria-label="發車時間"
-									value={getActiveGroup().departureTime ?? ''}
-									onchange={(e) =>
-										updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
-								/>
-							</label>
-							<div class="departure-weekday">
-								{#if getGroupWeekday(getActiveGroup())}
-									<span class="weekday">{getGroupWeekday(getActiveGroup())}</span>
-								{/if}
-							</div>
-							<label class="departure-label">
-								<input
-									class="departure-input dungeon-name"
-									type="text"
-									aria-label="副本名稱"
-									placeholder="副本名稱"
-									value={getActiveGroup().dungeonName ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'dungeonName',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input level"
-									type="text"
-									aria-label="等級"
-									placeholder="等級"
-									value={getActiveGroup().level ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'level',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input gear-score-req"
-									type="text"
-									aria-label="裝分限制"
-									placeholder="裝分限制"
-									value={getActiveGroup().gearScoreReq ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'gearScoreReq',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<select
-									class="departure-input content-type"
-									aria-label="內容類型"
-									value={getActiveGroup().contentType ?? ''}
-									onchange={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'contentType',
-											(e.target as HTMLSelectElement).value
-										)}
+										}
+									}}
+									role="button"
+									tabindex="0"
+									title="刪除此團隊"
 								>
-									<option value="">請選擇</option>
-									<option value="俠境">俠境</option>
-									<option value="百業">百業</option>
-									<option value="百業+俠境">百業+俠境</option>
-								</select>
-							</label>
+									×
+								</span>
+							{/if}
+						</button>
+					{/each}
+					{#if activeTab === 'forms' && isAdmin}
+						<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
+					{/if}
+				</div>
+			</div>
+			{#if activeTab === 'forms'}
+				{#if getActiveGroup()}
+					<div class="departure-time-row">
+						<label class="departure-label">
+							<input
+								class="departure-input departure-date"
+								type="date"
+								aria-label="發車日期"
+								value={getActiveGroup().departureDate ?? ''}
+								onchange={(e) =>
+									updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
+							/>
+						</label>
+						<label class="departure-label">
+							<input
+								class="departure-input departure-time"
+								type="time"
+								aria-label="發車時間"
+								value={getActiveGroup().departureTime ?? ''}
+								onchange={(e) =>
+									updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
+							/>
+						</label>
+						<div class="departure-weekday">
+							{#if getGroupWeekday(getActiveGroup())}
+								<span class="weekday">{getGroupWeekday(getActiveGroup())}</span>
+							{/if}
 						</div>
-						<div class="group-grid">
-							{#each getActiveGroup().members as member, index (`${activeGroupId}-${index}`)}
-								<div class="member-card">
-									<div class="member-header">
-										<span class="member-number">{index + 1}</span>
-										<div class="role-badges">
-											<label class="badge-checkbox" class:active={member.isDriver}>
-												<input
-													type="checkbox"
-													checked={member.isDriver}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'isDriver',
-															(e.target as HTMLInputElement).checked
-														)}
-												/>
-												<span>🚩 隊長</span>
-											</label>
-											<label class="badge-checkbox" class:active={member.isHelper}>
-												<input
-													type="checkbox"
-													checked={member.isHelper}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'isHelper',
-															(e.target as HTMLInputElement).checked
-														)}
-												/>
-												<span>🤝 幫打</span>
-											</label>
-										</div>
+						<label class="departure-label">
+							<input
+								class="departure-input dungeon-name"
+								type="text"
+								aria-label="副本名稱"
+								placeholder="副本名稱"
+								value={getActiveGroup().dungeonName ?? ''}
+								oninput={(e) =>
+									updateGroupField(
+										activeGroupId,
+										undefined,
+										'dungeonName',
+										(e.target as HTMLInputElement).value
+									)}
+							/>
+						</label>
+						<label class="departure-label">
+							<input
+								class="departure-input level"
+								type="text"
+								aria-label="等級"
+								placeholder="等級"
+								value={getActiveGroup().level ?? ''}
+								oninput={(e) =>
+									updateGroupField(
+										activeGroupId,
+										undefined,
+										'level',
+										(e.target as HTMLInputElement).value
+									)}
+							/>
+						</label>
+						<label class="departure-label">
+							<input
+								class="departure-input gear-score-req"
+								type="text"
+								aria-label="裝分限制"
+								placeholder="裝分限制"
+								value={getActiveGroup().gearScoreReq ?? ''}
+								oninput={(e) =>
+									updateGroupField(
+										activeGroupId,
+										undefined,
+										'gearScoreReq',
+										(e.target as HTMLInputElement).value
+									)}
+							/>
+						</label>
+						<label class="departure-label">
+							<select
+								class="departure-input content-type"
+								aria-label="內容類型"
+								value={getActiveGroup().contentType ?? ''}
+								onchange={(e) =>
+									updateGroupField(
+										activeGroupId,
+										undefined,
+										'contentType',
+										(e.target as HTMLSelectElement).value
+									)}
+							>
+								<option value="">請選擇</option>
+								<option value="俠境">俠境</option>
+								<option value="百業">百業</option>
+								<option value="百業+俠境">百業+俠境</option>
+							</select>
+						</label>
+					</div>
+					<div class="group-grid">
+						{#each getActiveGroup().members as member, index (index)}
+							<div class="member-card">
+								<div class="member-header">
+									<span class="member-number">{index + 1}</span>
+									<div class="role-badges">
+										<label class="badge-checkbox" class:active={member.isDriver}>
+											<input
+												type="checkbox"
+												checked={member.isDriver}
+												onchange={(e) =>
+													updateGroupField(
+														activeGroupId,
+														index,
+														'isDriver',
+														(e.target as HTMLInputElement).checked
+													)}
+											/>
+											<span>🚩 隊長</span>
+										</label>
+										<label class="badge-checkbox" class:active={member.isHelper}>
+											<input
+												type="checkbox"
+												checked={member.isHelper}
+												onchange={(e) =>
+													updateGroupField(
+														activeGroupId,
+														index,
+														'isHelper',
+														(e.target as HTMLInputElement).checked
+													)}
+											/>
+											<span>🤝 幫打</span>
+										</label>
 									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">職能</span>
-												<select
-													value={member.profession}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'profession',
-															(e.target as HTMLSelectElement).value
-														)}
-												>
-													<option value="">請選擇</option>
-													<option value="坦克">坦克</option>
-													<option value="治療">治療</option>
-													<option value="輸出">輸出</option>
-												</select>
-											</label>
-										</div>
+								</div>
+								<div class="form-row">
+									<div class="form-group">
+										<label>
+											<span class="label-text">職能</span>
+											<select
+												value={member.profession}
+												onchange={(e) =>
+													updateGroupField(
+														activeGroupId,
+														index,
+														'profession',
+														(e.target as HTMLSelectElement).value
+													)}
+											>
+												<option value="">請選擇</option>
+												<option value="坦克">坦克</option>
+												<option value="治療">治療</option>
+												<option value="輸出">輸出</option>
+											</select>
+										</label>
 									</div>
-									<div class="form-row">
-										<!-- 武器欄位已移除 -->
+								</div>
+								<div class="form-row">
+									<!-- 武器欄位已移除 -->
+								</div>
+								<div class="form-row">
+									<div class="form-group">
+										<label>
+											<span class="label-text">玩家 ID</span>
+											<input
+												type="text"
+												placeholder="遊戲 ID"
+												value={member.playerId}
+												oninput={(e) =>
+													updateGroupField(
+														activeGroupId,
+														index,
+														'playerId',
+														(e.target as HTMLInputElement).value
+													)}
+											/>
+										</label>
 									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">玩家 ID</span>
-												<input
-													type="text"
-													placeholder="遊戲暱稱"
-													value={member.playerId}
-													oninput={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'playerId',
-															(e.target as HTMLInputElement).value
-														)}
-												/>
-											</label>
-										</div>
+								</div>
+								<div class="form-row">
+									<div class="form-group">
+										<label>
+											<span class="label-text">裝分</span>
+											<input
+												type="number"
+												min="0"
+												placeholder="0"
+												value={member.gearScore}
+												oninput={(e) =>
+													updateGroupField(
+														activeGroupId,
+														index,
+														'gearScore',
+														(e.target as HTMLInputElement).value
+													)}
+											/>
+										</label>
 									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">裝分</span>
-												<input
-													type="number"
-													min="0"
-													placeholder="0"
-													value={member.gearScore}
-													oninput={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'gearScore',
-															(e.target as HTMLInputElement).value
-														)}
-												/>
-											</label>
-										</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			{:else}
+				<section class="history-section">
+					<div class="history-header-wrapper">
+						<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
+						<div class="history-stats">
+							{#if (getActiveGroup()?.changeLog ?? []).length > 0}
+								<span class="stat-item"
+									>變更數：<strong>{(getActiveGroup()?.changeLog ?? []).length}</strong></span
+								>
+								<span class="stat-item"
+									>最後更新：<strong
+										>{(getActiveGroup()?.changeLog?.[0]?.timestamp ?? new Date()).toLocaleString(
+											'zh-TW'
+										)}</strong
+									></span
+								>
+								{#if (getActiveGroup()?.changeLog ?? []).length >= MAX_CHANGELOG_ENTRIES}
+									<span class="stat-item warning">⚠️ 已達上限 ({MAX_CHANGELOG_ENTRIES} 筆)</span>
+								{/if}
+							{:else}
+								<span class="stat-item">變更數：<strong>0</strong></span>
+							{/if}
+						</div>
+					</div>
+
+					{#if (getActiveGroup()?.changeLog ?? []).length === 0}
+						<div class="history-empty">
+							<p class="history-note">✨ 此團隊尚無更改紀錄</p>
+							<p class="history-hint">在「填寫表單」頁面對此團隊進行操作都會記錄在此</p>
+						</div>
+					{:else}
+						<div class="history-list">
+							{#each getActiveGroup()?.changeLog ?? [] as entry (entry.id)}
+								<div class="history-entry">
+									<div class="history-action-badge">
+										{#if entry.action === '建立團隊'}
+											<span class="badge badge-create">🆕 {entry.action}</span>
+										{:else if entry.action === '刪除團隊'}
+											<span class="badge badge-delete">🗑️ {entry.action}</span>
+										{:else if entry.action === '更新成員'}
+											<span class="badge badge-update">✏️ {entry.action}</span>
+										{:else if entry.action === '更新發車日期'}
+											<span class="badge badge-date">📅 {entry.action}</span>
+										{:else if entry.action === '更新發車時間'}
+											<span class="badge badge-time">⏰ {entry.action}</span>
+										{:else}
+											<span class="badge">{entry.action}</span>
+										{/if}
 									</div>
+									<span class="history-details">{entry.details}</span>
+									<span class="history-user">操作者：<strong>{entry.gameId}</strong></span>
+									<time class="history-timestamp"
+										>{entry.timestamp.toLocaleTimeString('zh-TW', { hour12: false })}
+										{entry.timestamp.toLocaleDateString('zh-TW')}</time
+									>
 								</div>
 							{/each}
 						</div>
 					{/if}
-				{:else}
-					<section class="history-section">
-						<div class="history-header-wrapper">
-							<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
-							<div class="history-stats">
-								{#if (getActiveGroup()?.changeLog ?? []).length > 0}
-									<span class="stat-item"
-										>變更數：<strong>{(getActiveGroup()?.changeLog ?? []).length}</strong></span
-									>
-									<span class="stat-item"
-										>最後更新：<strong
-											>{(getActiveGroup()?.changeLog?.[0]?.timestamp ?? new Date()).toLocaleString(
-												'zh-TW'
-											)}</strong
-										></span
-									>
-									{#if (getActiveGroup()?.changeLog ?? []).length >= MAX_CHANGELOG_ENTRIES}
-										<span class="stat-item warning">⚠️ 已達上限 ({MAX_CHANGELOG_ENTRIES} 筆)</span>
-									{/if}
-								{:else}
-									<span class="stat-item">變更數：<strong>0</strong></span>
-								{/if}
-							</div>
-						</div>
-
-						{#if (getActiveGroup()?.changeLog ?? []).length === 0}
-							<div class="history-empty">
-								<p class="history-note">✨ 此團隊尚無更改紀錄</p>
-								<p class="history-hint">在「填寫表單」頁面對此團隊進行操作都會記錄在此</p>
-							</div>
-						{:else}
-							<div class="history-list">
-								{#each getActiveGroup()?.changeLog ?? [] as entry (entry.id)}
-									<div class="history-entry">
-										<div class="history-action-badge">
-											{#if entry.action === '建立團隊'}
-												<span class="badge badge-create">🆕 {entry.action}</span>
-											{:else if entry.action === '刪除團隊'}
-												<span class="badge badge-delete">🗑️ {entry.action}</span>
-											{:else if entry.action === '更新成員'}
-												<span class="badge badge-update">✏️ {entry.action}</span>
-											{:else if entry.action === '更新發車日期'}
-												<span class="badge badge-date">📅 {entry.action}</span>
-											{:else if entry.action === '更新發車時間'}
-												<span class="badge badge-time">⏰ {entry.action}</span>
-											{:else}
-												<span class="badge">{entry.action}</span>
-											{/if}
-										</div>
-										<span class="history-details">{entry.details}</span>
-										<span class="history-user">操作者：<strong>{entry.gameId}</strong></span>
-										<time class="history-timestamp"
-											>{entry.timestamp.toLocaleTimeString('zh-TW', { hour12: false })}
-											{entry.timestamp.toLocaleDateString('zh-TW')}</time
-										>
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</section>
-				{/if}
-			</section>
-		</div>
-	{/key}
+				</section>
+			{/if}
+		</section>
+	</div>
 {/if}
