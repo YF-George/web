@@ -385,6 +385,132 @@
 
 		groups = groups; // 觸發 Svelte 反應式更新
 		pendingUpdates.delete(key);
+
+		// 合併並同步此團隊的 changeLog 到儲存層，避免覆寫遠端其他使用者的變更
+		mergeAndSyncGroupChangeLog(group.id);
+	}
+
+	// 合併遠端與本地指定團隊的 changeLog，然後寫回儲存層
+	function mergeAndSyncGroupChangeLog(groupId: string) {
+		if (!storageInitialized || !storageRoot) return;
+		try {
+			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+			const remoteGroups = (immutable.groups || []) as unknown as Array<Record<string, unknown>>;
+			const localGroup = groups.find((g) => g.id === groupId);
+			if (!localGroup) return;
+			const remoteGroup = remoteGroups.find(
+				(rg) => String((rg as Record<string, unknown>).id ?? '') === groupId
+			);
+			if (!remoteGroup) {
+				// 若遠端不存在該團隊，直接同步整個本地清單
+				syncLocalGroupsToStorage();
+				return;
+			}
+
+			const remoteCL = ((remoteGroup as Record<string, unknown>).changeLog ?? []) as unknown[];
+			const localCL = (localGroup.changeLog || []) as ChangeLog[];
+			const mergedMap: Record<string, ChangeLog> = {};
+			for (const c of remoteCL) {
+				try {
+					const cc = c as Record<string, unknown>;
+					mergedMap[String(cc.id ?? '')] = {
+						id: String(cc.id ?? ''),
+						timestamp: cc.timestamp ? new Date(String(cc.timestamp)) : new Date(),
+						gameId: String(cc.gameId ?? ''),
+						action: String(cc.action ?? ''),
+						details: String(cc.details ?? '')
+					};
+				} catch {
+					// ignore
+				}
+			}
+			for (const c of localCL) mergedMap[String(c.id)] = c;
+			const merged = Object.values(mergedMap)
+				.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+				.slice(0, MAX_CHANGELOG_ENTRIES);
+
+			const newLiveGroups = new LiveList<LiveObject<LiveGroup>>(
+				remoteGroups.map((rg) => {
+					const rr = rg as Record<string, unknown>;
+					if (String(rr.id ?? '') === groupId) {
+						return new LiveObject<LiveGroup>({
+							id: localGroup.id,
+							members: new LiveList<LiveObject<LiveGroupMember>>(
+								(localGroup.members || []).map(
+									(m) =>
+										new LiveObject<LiveGroupMember>({
+											profession: m.profession,
+											isDriver: !!m.isDriver,
+											isHelper: !!m.isHelper,
+											playerId: m.playerId || '',
+											gearScore: m.gearScore || ''
+										})
+								)
+							),
+							departureDate: localGroup.departureDate || '',
+							departureTime: localGroup.departureTime || '',
+							status: localGroup.status || '招募中',
+							dungeonName: localGroup.dungeonName || '',
+							level: localGroup.level || '',
+							gearScoreReq: localGroup.gearScoreReq || '',
+							contentType: localGroup.contentType || '',
+							changeLog: new LiveList<LiveObject<LiveChangeLog>>(
+								merged.map(
+									(c) =>
+										new LiveObject<LiveChangeLog>({
+											id: c.id,
+											timestamp: new Date(c.timestamp).toISOString(),
+											gameId: c.gameId,
+											action: c.action,
+											details: c.details
+										})
+								)
+							)
+						});
+					}
+					// non-target group: reconstruct from remote
+					return new LiveObject<LiveGroup>({
+						id: String(rr.id ?? ''),
+						members: new LiveList<LiveObject<LiveGroupMember>>(
+							(((rr.members ?? []) as unknown[]) || []).map((m: unknown) => {
+								const mm = m as Record<string, unknown>;
+								return new LiveObject<LiveGroupMember>({
+									profession: String(mm.profession ?? ''),
+									isDriver: !!mm.isDriver,
+									isHelper: !!mm.isHelper,
+									playerId: String(mm.playerId ?? ''),
+									gearScore: (mm.gearScore as string | number | undefined) ?? ''
+								});
+							})
+						),
+						departureDate: String(rr.departureDate ?? ''),
+						departureTime: String(rr.departureTime ?? ''),
+						status: String(rr.status ?? '招募中'),
+						dungeonName: String(rr.dungeonName ?? ''),
+						level: String(rr.level ?? ''),
+						gearScoreReq: String(rr.gearScoreReq ?? ''),
+						contentType: String(rr.contentType ?? ''),
+						changeLog: new LiveList<LiveObject<LiveChangeLog>>(
+							(((rr.changeLog ?? []) as unknown[]) || []).map((c: unknown) => {
+								const cc = c as Record<string, unknown>;
+								return new LiveObject<LiveChangeLog>({
+									id: String(cc.id ?? ''),
+									timestamp: new Date(String(cc.timestamp)).toISOString(),
+									gameId: String(cc.gameId ?? ''),
+									action: String(cc.action ?? ''),
+									details: String(cc.details ?? '')
+								});
+							})
+						)
+					});
+				})
+			);
+			storageRoot.set('groups', newLiveGroups);
+		} catch (e) {
+			console.error('mergeAndSyncGroupChangeLog error', e);
+			// fallback to full sync
+			syncLocalGroupsToStorage();
+		}
 	}
 
 	// 驗證遊戲 ID / 密碼，成功後切換登入狀態
@@ -844,15 +970,17 @@
 							填寫表單
 						</button>
 					</li>
-					<li class="nav-item">
-						<button
-							class="nav-link"
-							class:active={activeTab === 'history'}
-							onclick={() => (activeTab = 'history')}
-						>
-							更改紀錄
-						</button>
-					</li>
+					{#if isAdmin}
+						<li class="nav-item">
+							<button
+								class="nav-link"
+								class:active={activeTab === 'history'}
+								onclick={() => (activeTab = 'history')}
+							>
+								更改紀錄
+							</button>
+						</li>
+					{/if}
 				</ul>
 				<div class="nav-actions">
 					<span class="nav-user" title={gameId || '訪客'}>{gameId || '訪客'}</span>
@@ -1141,7 +1269,7 @@
 							{/each}
 						</div>
 					{/if}
-				{:else}
+				{:else if activeTab === 'history' && isAdmin}
 					<section class="history-section">
 						<div class="history-header-wrapper">
 							<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
@@ -1200,6 +1328,14 @@
 								{/each}
 							</div>
 						{/if}
+					</section>
+				{:else if activeTab === 'history' && !isAdmin}
+					<section class="history-section">
+						<div class="history-empty">
+							<p class="history-note">🔒 權限不足</p>
+							<p class="history-hint">只有管理員可以查看更改紀錄。</p>
+							<button class="btn" onclick={() => (activeTab = 'forms')}>回到填寫表單</button>
+						</div>
 					</section>
 				{/if}
 			</div>
