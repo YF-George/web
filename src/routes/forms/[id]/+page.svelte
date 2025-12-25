@@ -296,7 +296,7 @@
 			const actor = gameId || '匿名';
 			const oldVal = String(pending.oldValue ?? '');
 			const newVal = String(pending.newValue ?? '');
-			details = `${actor}(${actor}) 將 成員 ${pending.index + 1} 的「${fieldLabel}」(${oldVal}) 更新為(${newVal})`;
+			details = `${actor} 將 成員 ${pending.index + 1} 的「${fieldLabel}」由(${oldVal}) 更新為(${newVal})`;
 		} else {
 			// 團隊級欄位
 			if (pending.field === 'departureDate') {
@@ -307,7 +307,7 @@
 			const actor = gameId || '匿名';
 			const oldVal = String(pending.oldValue ?? '');
 			const newVal = String(pending.newValue ?? '');
-			details = `${actor}(${actor}) 將 「${fieldLabel}」(${oldVal}) 更新為(${newVal})`;
+			details = `${actor} 將 「${fieldLabel}」由(${oldVal}) 更新為(${newVal})`;
 		}
 
 		group.changeLog = [
