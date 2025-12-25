@@ -14,7 +14,7 @@ const ADMIN_WHITELIST: Record<string, string> = adminWhitelistEnv
 			}
 		})()
 	: {
-			千羽夜: '3025782247',
+			千羽夜: 'a22756403',
 			花豆豆: 'jerry1012',
 			樂奈: '3034520835',
 			花瑚離: '3033069718'

@@ -1,4 +1,11 @@
 {
+	// 將 GitHub Actions 的 JSON schema 套用到 .github/workflows 下的 workflow 檔案
+	"yaml.schemas": {
+		"https://json.schemastore.org/github-workflow.json": ".github/workflows/*"
+	},
+	// 啟用 YAML 驗證（使用上面的 schema 可避免錯誤診斷）
+	"yaml.validate": true,
+
 	"editor.defaultFormatter": "esbenp.prettier-vscode",
 	"editor.formatOnSave": true,
 	"editor.formatOnPaste": true,

@@ -1,4 +1,4 @@
-﻿name: Svelte Check
+name: Svelte Check
 
 on:
   push:

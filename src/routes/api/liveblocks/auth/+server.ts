@@ -1,25 +1,28 @@
 import type { RequestHandler } from './$types';
 import { Liveblocks } from '@liveblocks/node';
 
-// ---- 環境設定 ----
-const LIVEBLOCKS_SECRET = process.env.LIVEBLOCKS_SECRET_KEY;
+// 開發時的備援：嘗試從專案根目錄載入 .env（若 dotenv 已安裝）
+// 在開發環境使用動態 import 載入 dotenv（已安裝時會讀取 .env）
+import('dotenv')
+	.then((mod) => mod.config())
+	.catch(() => {
+		/* 忽略無 dotenv 的情況，依賴系統 env */
+	});
 
-if (!LIVEBLOCKS_SECRET) {
-	console.warn('[liveblocks auth] LIVEBLOCKS_SECRET_KEY 未設定，請在環境變數或 .env 中提供');
-}
-
-// 避免在模組匯入階段建立 Liveblocks 實例（會在 SSR 時評估並拋錯）
 let _liveblocksInstance: Liveblocks | null = null;
-function getLiveblocksInstance(): Liveblocks {
+function getLiveblocksInstance(): Liveblocks | null {
 	if (_liveblocksInstance) return _liveblocksInstance;
-	if (
-		!LIVEBLOCKS_SECRET ||
-		typeof LIVEBLOCKS_SECRET !== 'string' ||
-		!LIVEBLOCKS_SECRET.startsWith('sk_')
-	) {
-		throw new Error('LIVEBLOCKS_SECRET_KEY 未設定或格式不正確（需以 sk_ 開頭）');
+
+	// 每次呼叫時動態讀取環境變數，避免模組載入時快照固定導致變數不同步
+	const secret: string | undefined =
+		process.env.LIVEBLOCKS_SECRET_KEY || process.env.LIVEBLOCKS_SECRET || undefined;
+
+	if (!secret || typeof secret !== 'string' || !secret.startsWith('sk_')) {
+		console.warn('[liveblocks auth] LIVEBLOCKS_SECRET_KEY 未設定或格式不正確（需以 sk_ 開頭）');
+		return null;
 	}
-	_liveblocksInstance = new Liveblocks({ secret: LIVEBLOCKS_SECRET });
+
+	_liveblocksInstance = new Liveblocks({ secret });
 	return _liveblocksInstance;
 }
 
@@ -38,21 +41,22 @@ export const POST: RequestHandler = async ({ request }) => {
 		const gameId = asString(body.gameId).trim();
 		const userId = gameId || asString(body.userId).trim() || 'anonymous';
 
-		try {
-			const liveblocks = getLiveblocksInstance();
-			const session = liveblocks.prepareSession(userId, {
-				userInfo: { name: userId || 'anonymous' }
+		const liveblocks = getLiveblocksInstance();
+		if (!liveblocks) {
+			return new Response('Liveblocks secret 未設定或格式不正確，請設定 LIVEBLOCKS_SECRET_KEY', {
+				status: 503
 			});
-
-			// 允許用戶存取該房間；可依需求改為細粒度權限
-			session.allow(room, session.FULL_ACCESS);
-
-			const auth = await session.authorize();
-			return new Response(auth.body, { status: auth.status });
-		} catch (e) {
-			console.error('[liveblocks auth] initialization error', e);
-			return new Response('Liveblocks secret 未設定或不正確', { status: 500 });
 		}
+
+		const session = liveblocks.prepareSession(userId, {
+			userInfo: { name: userId || 'anonymous' }
+		});
+
+		// 允許用戶存取該房間；可依需求改為細粒度權限
+		session.allow(room, session.FULL_ACCESS);
+
+		const auth = await session.authorize();
+		return new Response(auth.body, { status: auth.status });
 	} catch (err) {
 		console.error('[liveblocks auth] error', err);
 		return new Response('Internal Server Error', { status: 500 });
