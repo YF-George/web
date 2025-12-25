@@ -17,7 +17,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	/* 改為透明以讓底層的 circuit-background 顯示出來 */
+	background: transparent;
 	padding: 2rem;
 }
 
@@ -62,7 +63,7 @@
 		),
 		radial-gradient(circle at 20px 20px, rgba(55, 65, 81, 0.12) 2px, transparent 2px),
 		radial-gradient(circle at 40px 40px, rgba(55, 65, 81, 0.12) 2px, transparent 2px);
-	background-size:
+	.circuit-background {
 		40px 40px,
 		40px 40px,
 		40px 40px,
@@ -70,43 +71,52 @@
 }
 
 /* Ensure login card appears above the background */
-.login-container,
-.login-card {
-	position: relative;
-	z-index: 1;
-}
-
-/* Wrapper content that should sit above the circuit background */
-.circuit-content {
-	position: relative;
-	z-index: 1;
-}
-
-.login-card {
-	background: white;
-	border-radius: 20px;
-	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-	padding: 3rem;
-	max-width: 480px;
-	width: 100%;
-	display: flex;
-	flex-direction: column;
-	gap: 2rem;
-}
-
-.login-header {
-	text-align: center;
-}
-.login-header h1 {
-	margin: 0 0 0.5rem 0;
-	font-size: 2rem;
-	color: #1f2937;
-}
-.login-subtitle {
-	margin: 0;
-	color: var(--muted);
-	font-size: 1rem;
-}
+	.circuit-background {
+		position: absolute;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		z-index: 0;
+		pointer-events: none;
+		/* 提高不透明度，讓圖案在淺色背景上更容易看見 */
+		background-image: repeating-linear-gradient(
+				0deg,
+				transparent,
+				transparent 19px,
+				rgba(75, 85, 99, 0.12) 19px,
+				rgba(75, 85, 99, 0.12) 20px,
+				transparent 20px,
+				transparent 39px,
+				rgba(75, 85, 99, 0.12) 39px,
+				rgba(75, 85, 99, 0.12) 40px
+			),
+			repeating-linear-gradient(
+				90deg,
+				transparent,
+				transparent 19px,
+				rgba(75, 85, 99, 0.12) 19px,
+				rgba(75, 85, 99, 0.12) 20px,
+				transparent 20px,
+				transparent 39px,
+				rgba(75, 85, 99, 0.12) 39px,
+				rgba(75, 85, 99, 0.12) 40px
+			),
+			radial-gradient(
+				circle at 20px 20px,
+				rgba(55, 65, 81, 0.16) 2px,
+				transparent 2px
+			),
+			radial-gradient(
+				circle at 40px 40px,
+				rgba(55, 65, 81, 0.16) 2px,
+				transparent 2px
+			);
+		background-size:
+			40px 40px,
+			40px 40px,
+			40px 40px,
+			40px 40px;
 
 .login-status {
 	padding: 0.75rem 1rem;
