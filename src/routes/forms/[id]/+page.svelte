@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { room } from '$lib/room';
+	import { LiveObject, LiveList } from '@liveblocks/client';
 
 	interface GroupMember {
 		profession: string;
@@ -82,6 +83,133 @@
 	];
 
 	let activeGroupId = '1';
+
+	// Liveblocks Storage 初始化與同步
+	let storageInitialized = false;
+	let storageRoot: LiveObject<unknown> | null = null;
+
+	function toLiveGroup(g: LocalGroup) {
+		return new LiveObject<unknown>({
+			id: g.id,
+			members: new LiveList<unknown>(
+				(g.members || []).map(
+					(m) =>
+						new LiveObject({
+							profession: m.profession,
+							isDriver: !!m.isDriver,
+							isHelper: !!m.isHelper,
+							playerId: m.playerId || '',
+							gearScore: m.gearScore || ''
+						})
+				)
+			),
+			departureDate: g.departureDate || '',
+			departureTime: g.departureTime || '',
+			dungeonName: g.dungeonName || '',
+			level: g.level || '',
+			gearScoreReq: g.gearScoreReq || '',
+			contentType: g.contentType || '',
+			changeLog: new LiveList<unknown>(
+				(g.changeLog || []).map(
+					(c) =>
+						new LiveObject({
+							id: c.id,
+							timestamp: new Date(c.timestamp).toISOString(),
+							gameId: c.gameId,
+							action: c.action,
+							details: c.details
+						})
+				)
+			)
+		});
+	}
+
+	function syncLocalGroupsToStorage() {
+		if (!storageInitialized || !storageRoot) return;
+		try {
+			const liveGroups = new LiveList<unknown>(groups.map((g) => toLiveGroup(g)));
+			(storageRoot as unknown as { set: (key: string, value: unknown) => void }).set(
+				'groups',
+				liveGroups
+			);
+		} catch (e) {
+			console.error('syncLocalGroupsToStorage error', e);
+		}
+	}
+
+	onMount(async () => {
+		try {
+			const { root } = await room.getStorage();
+			storageRoot = root as unknown as LiveObject<unknown>;
+			storageInitialized = true;
+
+			// 若尚未存在 groups，初始化一次
+			try {
+				const existing = (storageRoot as unknown as { get: (key: string) => unknown }).get(
+					'groups'
+				);
+				if (!existing) {
+					(storageRoot as unknown as { set: (key: string, value: unknown) => void }).set(
+						'groups',
+						new LiveList<unknown>(groups.map((g) => toLiveGroup(g)))
+					);
+				}
+			} catch (e) {
+				console.error('storage groups init error', e);
+			}
+
+			const unsubscribeStorage = room.subscribe(storageRoot as unknown as object, () => {
+				try {
+					const immutable = (
+						storageRoot as unknown as { toImmutable: () => { groups?: unknown } }
+					).toImmutable();
+					const groupsPlain = (
+						immutable && immutable.groups ? (immutable.groups as unknown) : []
+					) as Array<Record<string, unknown>>;
+					if (groupsPlain) {
+						groups = groupsPlain.map((lg) => ({
+							id: String((lg as Record<string, unknown>).id ?? ''),
+							members: (
+								((lg as Record<string, unknown>).members ?? []) as Array<Record<string, unknown>>
+							).map((m) => ({
+								profession: String(m.profession ?? ''),
+								isDriver: !!m.isDriver,
+								isHelper: !!m.isHelper,
+								playerId: String(m.playerId ?? ''),
+								gearScore: (m.gearScore as string | number | undefined) ?? ''
+							})),
+							departureDate: String((lg as Record<string, unknown>).departureDate ?? ''),
+							departureTime: String((lg as Record<string, unknown>).departureTime ?? ''),
+							dungeonName: String((lg as Record<string, unknown>).dungeonName ?? ''),
+							level: String((lg as Record<string, unknown>).level ?? ''),
+							gearScoreReq: String((lg as Record<string, unknown>).gearScoreReq ?? ''),
+							contentType: String((lg as Record<string, unknown>).contentType ?? ''),
+							changeLog: (
+								((lg as Record<string, unknown>).changeLog ?? []) as Array<Record<string, unknown>>
+							).map((c) => ({
+								id: String(c.id ?? ''),
+								timestamp: c.timestamp ? new Date(String(c.timestamp)) : new Date(),
+								gameId: String(c.gameId ?? ''),
+								action: String(c.action ?? ''),
+								details: String(c.details ?? '')
+							}))
+						}));
+						if (!groups.find((g) => g.id === activeGroupId)) {
+							activeGroupId = groups[0]?.id || '1';
+						}
+					}
+				} catch (e) {
+					console.error('storage subscribe error', e);
+				}
+			});
+
+			onDestroy(() => {
+				unsubscribeStorage();
+			});
+		} catch (e) {
+			console.error('init storage error', e);
+		}
+	});
 
 	function commitPendingUpdate(key: string) {
 		const pending = pendingUpdates.get(key);
@@ -236,6 +364,9 @@
 		];
 		activeGroupId = newId;
 		renumberGroups();
+
+		// 同步到 Storage
+		syncLocalGroupsToStorage();
 	}
 
 	function deleteGroup(groupId: string) {
@@ -265,6 +396,9 @@
 		groups = groups.filter((g) => g.id !== groupId);
 		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || '1';
 		renumberGroups();
+
+		// 同步到 Storage
+		syncLocalGroupsToStorage();
 	}
 
 	// 重新編號所有團隊，從 1 開始
@@ -280,6 +414,9 @@
 		} else {
 			activeGroupId = groups[0]?.id || '1';
 		}
+
+		// 同步到 Storage（確保 ID 連號變更被覆蓋）
+		syncLocalGroupsToStorage();
 	}
 
 	function updateGroupField(
@@ -349,6 +486,12 @@
 
 			pendingUpdates.set(key, pending);
 		}
+
+		// 同步到 Storage（成員層級欄位變更）
+		syncLocalGroupsToStorage();
+
+		// 同步到 Storage（成員層級欄位變更）
+		syncLocalGroupsToStorage();
 	}
 
 	function getActiveGroup() {
@@ -376,6 +519,9 @@
 
 			pendingUpdates.set(key, pending);
 		}
+
+		// 同步到 Storage（發車日期變更）
+		syncLocalGroupsToStorage();
 	}
 
 	function updateGroupTime(groupId: string, value: string) {
@@ -399,6 +545,9 @@
 
 			pendingUpdates.set(key, pending);
 		}
+
+		// 同步到 Storage（發車時間變更）
+		syncLocalGroupsToStorage();
 	}
 
 	function getGroupWeekday(g: LocalGroup) {
