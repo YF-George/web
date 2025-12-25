@@ -38,7 +38,11 @@ export const enterRoom = (name = 'my-room') => {
 // 進房但檢查人數上限：
 // - 如果當前房內其他人數 >= maxClients，會自動 leave 並回傳 { ok: false, reason: 'full' }
 // - 否則回傳原本的 connection 物件並標記 ok: true
-export const enterRoomWithCapacity = async (name = 'my-room', maxClients = 100) => {
+export const enterRoomWithCapacity = async (
+	name = 'my-room',
+	maxClients = 100,
+	allowObserver = true
+) => {
 	const roomName = normalizeRoomName(name);
 	const connection = client.enterRoom(roomName);
 	const room = connection.room;
@@ -53,15 +57,19 @@ export const enterRoomWithCapacity = async (name = 'my-room', maxClients = 100) 
 			try {
 				const count = Array.isArray(others) ? others.length : 0;
 				if (count >= maxClients) {
-					// 房間已滿，離開並回報
-					try {
-						connection.leave();
-					} catch {
-						// 忽略離開錯誤
+					// 房間已滿：若允許觀察者則回傳 observer 標記，否則離開並回報
+					if (allowObserver) {
+						resolve({ ok: true, connection, observer: true });
+					} else {
+						try {
+							connection.leave();
+						} catch {
+							// 忽略離開錯誤
+						}
+						resolve({ ok: false, reason: 'full' });
 					}
-					resolve({ ok: false, reason: 'full' });
 				} else {
-					resolve({ ok: true, connection });
+					resolve({ ok: true, connection, observer: false });
 				}
 			} finally {
 				try {

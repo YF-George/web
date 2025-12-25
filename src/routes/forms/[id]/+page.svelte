@@ -129,6 +129,7 @@
 	let uid = '';
 	let isLoggedIn = false;
 	let isAdmin = false;
+	let isObserver = false;
 	let isLoading = false;
 
 	// 本頁的分頁狀態（填寫/紀錄）
@@ -182,6 +183,7 @@
 	// 儲存初始化後，將本地資料寫回 Liveblocks
 	function syncLocalGroupsToStorage() {
 		if (!storageInitialized || !storageRoot) return;
+		if (isObserver) return; // 觀察者為唯讀，避免覆寫儲存層
 		try {
 			const liveGroups = new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)));
 			storageRoot!.set('groups', liveGroups);
@@ -199,20 +201,81 @@
 
 		const res = await enterRoomWithCapacity(roomName, MAX_ROOM_CLIENTS);
 		if (!res.ok) {
-			// 若房間已滿，提示並中止後續初始化
+			// 若房間已滿且不允許觀察者，提示並中止後續初始化
 			status = '❌ 房間人數已達上限，請稍後再試';
-			// 解除路由訂閱後回傳（避免繼續執行）
 			unsubPage();
 			return;
 		}
 		const connection = res.connection;
 		room = connection.room;
 		leave = connection.leave;
+		// 若後端/檢查回傳 observer 標記，切換為觀察者模式
+		const observerFlag = (res as { observer?: unknown }).observer;
+		isObserver = Boolean(observerFlag);
+		if (isObserver) {
+			status = '🔍 你以觀察者身份加入，畫面為唯讀。若閒置超過 3 分鐘將自動離開。';
+			// 讓狀態可見一段時間
+			setTimeout(() => (status = ''), 5000);
+		}
 
 		// others 訂閱
 		const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
 			others = updatedOthers as Array<unknown>;
 		});
+
+		// 若為觀察者，啟動閒置監控，超過時間自動離開
+		let _observerTimer: ReturnType<typeof setTimeout> | null = null;
+		let _observerListeners: Array<{ type: string; fn: EventListenerOrEventListenerObject }> = [];
+		const OBSERVER_IDLE_MS = 3 * 60 * 1000; // 3 分鐘
+
+		function _resetObserverTimer() {
+			if (_observerTimer) clearTimeout(_observerTimer);
+			_observerTimer = setTimeout(() => {
+				// 自動離開觀察者
+				try {
+					if (leave) leave();
+					status = '⚠️ 已因長時間閒置自動離開觀察者';
+				} catch (e) {
+					console.error('observer auto-leave error', e);
+				}
+			}, OBSERVER_IDLE_MS);
+		}
+
+		function _startObserverMonitor() {
+			if (!browser) return;
+			_resetObserverTimer();
+			const events = ['mousemove', 'keydown', 'touchstart', 'click'];
+			for (const ev of events) {
+				const fn = () => _resetObserverTimer();
+				window.addEventListener(ev, fn);
+				_observerListeners.push({ type: ev, fn });
+			}
+			// visibilitychange 也會重置
+			const visFn = () => {
+				if (document.visibilityState === 'visible') _resetObserverTimer();
+			};
+			window.addEventListener('visibilitychange', visFn);
+			_observerListeners.push({ type: 'visibilitychange', fn: visFn });
+		}
+
+		function _stopObserverMonitor() {
+			if (_observerTimer) {
+				clearTimeout(_observerTimer);
+				_observerTimer = null;
+			}
+			for (const l of _observerListeners) {
+				try {
+					window.removeEventListener(l.type, l.fn as EventListener);
+				} catch {
+					// ignore
+				}
+			}
+			_observerListeners = [];
+		}
+
+		if (isObserver) {
+			_startObserverMonitor();
+		}
 
 		try {
 			// 儲存根節點包含共享的團隊清單
@@ -223,7 +286,8 @@
 			// 若尚未存在 groups，初始化一次
 			try {
 				const existing = storageRoot.get('groups');
-				if (!existing) {
+				if (!existing && !isObserver) {
+					// 只有非觀察者才會初始化儲存層（避免觀察者覆寫）
 					storageRoot.set(
 						'groups',
 						new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)))
@@ -273,6 +337,8 @@
 			});
 
 			onDestroy(() => {
+				// 停止觀察者監控
+				_stopObserverMonitor();
 				unsubscribeOthers();
 				unsubscribeStorage();
 				unsubPage();
