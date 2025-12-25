@@ -51,6 +51,22 @@
 	padding: 0.75rem 1rem;
 	border-radius: 10px;
 	text-align: center;
+
+	/* Ensure the background layer stays behind page content.
+		 - Give the pseudo-element a neutral stacking context (z-index: 0).
+		 - Raise direct children so they're rendered above the background. */
+	.page-bg {
+		z-index: 0; /* create stacking context */
+	}
+
+	.page-bg::before {
+		z-index: 0; /* background grid sits at base */
+	}
+
+	.page-bg > * {
+		position: relative; /* establish stacking above the background */
+		z-index: 1;
+	}
 	font-weight: 600;
 }
 .login-status.error {
