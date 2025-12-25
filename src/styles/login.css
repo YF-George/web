@@ -18,10 +18,9 @@
 .login-card {
 	background: white;
 	border-radius: 20px;
-	padding: 3rem 2.25rem; /* 增加垂直內距讓卡片更高 */
-	max-width: 380px; /* 稍微窄一些 */
-	width: clamp(260px, 85%, 380px);
-	min-height: 520px; /* 確保卡片高度較高，給表單更多空間 */
+	padding: 2rem;
+	max-width: 480px;
+	width: clamp(280px, 90%, 480px);
 	display: flex;
 	flex-direction: column;
 	gap: 1.25rem;
