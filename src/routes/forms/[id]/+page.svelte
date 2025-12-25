@@ -633,6 +633,51 @@
 		const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 		return weekdays[dayIndex];
 	}
+
+	// 回傳星期索引（0 = 星期日, 6 = 星期六），找不到則回 -1
+	function getGroupWeekdayIndex(g: LocalGroup) {
+		const d = (g.departureDate || '').trim();
+		if (!d) return -1;
+
+		const match = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+		if (!match) return -1;
+
+		const year = Number(match[1]);
+		const month = Number(match[2]);
+		const day = Number(match[3]);
+
+		if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return -1;
+		if (month < 1 || month > 12) return -1;
+		const daysInMonth = [
+			31,
+			year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
+			31,
+			30,
+			31,
+			30,
+			31,
+			31,
+			30,
+			31,
+			30,
+			31
+		];
+		if (day < 1 || day > daysInMonth[month - 1]) return -1;
+
+		let Y = year;
+		let mZ = month;
+		let q = day;
+		if (mZ <= 2) {
+			mZ += 12;
+			Y -= 1;
+		}
+		const K = Y % 100;
+		const J = Math.floor(Y / 100);
+		const h =
+			(q + Math.floor((13 * (mZ + 1)) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) + 5 * J) % 7;
+		const dayIndex = (h + 6) % 7; // 0 = Sunday
+		return dayIndex;
+	}
 </script>
 
 <svelte:head>
@@ -810,7 +855,15 @@
 							</label>
 							<div class="departure-weekday">
 								{#if getGroupWeekday(getActiveGroup())}
-									<span class="weekday">{getGroupWeekday(getActiveGroup())}</span>
+									<span
+										class="weekday"
+										class:weekend={getGroupWeekdayIndex(getActiveGroup()) === 0 ||
+											getGroupWeekdayIndex(getActiveGroup()) === 6}
+										class:sun={getGroupWeekdayIndex(getActiveGroup()) === 0}
+										class:sat={getGroupWeekdayIndex(getActiveGroup()) === 6}
+									>
+										{getGroupWeekday(getActiveGroup())}
+									</span>
 								{/if}
 							</div>
 							<label class="departure-label">
