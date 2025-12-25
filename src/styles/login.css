@@ -11,16 +11,17 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(135deg, #667eea, #764ba2);
+	background: transparent; /* use global circuit background from layout */
 	padding: 1.5rem;
 }
 
 .login-card {
 	background: white;
 	border-radius: 20px;
-	padding: 2rem;
-	max-width: 480px;
-	width: clamp(280px, 90%, 480px);
+	padding: 3rem 2.25rem; /* 增加垂直內距讓卡片更高 */
+	max-width: 380px; /* 稍微窄一些 */
+	width: clamp(260px, 85%, 380px);
+	min-height: 520px; /* 確保卡片高度較高，給表單更多空間 */
 	display: flex;
 	flex-direction: column;
 	gap: 1.25rem;
