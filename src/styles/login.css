@@ -17,14 +17,14 @@
 
 .login-card {
 	background: white;
-	border-radius: 20px;
-	padding: 2rem;
-	max-width: 480px;
-	width: clamp(280px, 90%, 480px);
+	border-radius: 14px;
+	padding: 1.5rem;
+	max-width: 360px; /* 縮窄樣式 */
+	width: clamp(260px, 80%, 360px);
 	display: flex;
 	flex-direction: column;
-	gap: 1.25rem;
-	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	gap: 1rem;
+	box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
 }
 
 .login-header {
