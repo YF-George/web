@@ -1,6 +1,7 @@
 ﻿<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { room } from '$lib/room';
+	import { enterRoom } from '$lib/room';
+	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
 
 	interface GroupMember {
@@ -23,6 +24,39 @@
 		changeLog?: ChangeLog[]; // 該團隊的變動紀錄
 	}
 
+	// Liveblocks Storage 型別（符合 Lson 規範）
+	type LiveGroupMember = {
+		profession: string;
+		isDriver: boolean;
+		isHelper: boolean;
+		playerId: string;
+		gearScore: string | number;
+	};
+
+	type LiveChangeLog = {
+		id: string;
+		timestamp: string; // ISO 字串
+		gameId: string;
+		action: string;
+		details: string;
+	};
+
+	type LiveGroup = {
+		id: string;
+		members: LiveList<LiveObject<LiveGroupMember>>;
+		departureDate: string;
+		departureTime: string;
+		dungeonName?: string;
+		level?: string;
+		gearScoreReq?: string;
+		contentType?: string;
+		changeLog: LiveList<LiveObject<LiveChangeLog>>;
+	};
+
+	type LiveRoot = {
+		groups: LiveList<LiveObject<LiveGroup>>;
+	};
+
 	interface ChangeLog {
 		id: string;
 		timestamp: Date;
@@ -44,15 +78,10 @@
 		timeout?: ReturnType<typeof setTimeout>;
 	}
 
-	let others = room.getOthers();
-
-	const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
-		others = updatedOthers;
-	});
-
-	onDestroy(() => {
-		unsubscribeOthers();
-	});
+	let others: Array<unknown> = [];
+	let leave: (() => void) | null = null;
+	let roomName = 'my-room';
+	let room: ReturnType<typeof enterRoom>['room'] | null = null;
 
 	let status = '';
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -86,15 +115,15 @@
 
 	// Liveblocks Storage 初始化與同步
 	let storageInitialized = false;
-	let storageRoot: LiveObject<unknown> | null = null;
+	let storageRoot: LiveObject<LiveRoot> | null = null;
 
-	function toLiveGroup(g: LocalGroup) {
-		return new LiveObject<unknown>({
+	function toLiveGroup(g: LocalGroup): LiveObject<LiveGroup> {
+		return new LiveObject<LiveGroup>({
 			id: g.id,
-			members: new LiveList<unknown>(
+			members: new LiveList<LiveObject<LiveGroupMember>>(
 				(g.members || []).map(
 					(m) =>
-						new LiveObject({
+						new LiveObject<LiveGroupMember>({
 							profession: m.profession,
 							isDriver: !!m.isDriver,
 							isHelper: !!m.isHelper,
@@ -109,10 +138,10 @@
 			level: g.level || '',
 			gearScoreReq: g.gearScoreReq || '',
 			contentType: g.contentType || '',
-			changeLog: new LiveList<unknown>(
+			changeLog: new LiveList<LiveObject<LiveChangeLog>>(
 				(g.changeLog || []).map(
 					(c) =>
-						new LiveObject({
+						new LiveObject<LiveChangeLog>({
 							id: c.id,
 							timestamp: new Date(c.timestamp).toISOString(),
 							gameId: c.gameId,
@@ -127,66 +156,67 @@
 	function syncLocalGroupsToStorage() {
 		if (!storageInitialized || !storageRoot) return;
 		try {
-			const liveGroups = new LiveList<unknown>(groups.map((g) => toLiveGroup(g)));
-			(storageRoot as unknown as { set: (key: string, value: unknown) => void }).set(
-				'groups',
-				liveGroups
-			);
+			const liveGroups = new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)));
+			storageRoot!.set('groups', liveGroups);
 		} catch (e) {
 			console.error('syncLocalGroupsToStorage error', e);
 		}
 	}
 
 	onMount(async () => {
+		// 依路由參數設定房間名稱
+		const unsubPage = page.subscribe((p) => {
+			roomName = (p.params?.id as string) || 'my-room';
+		});
+
+		const connection = enterRoom(roomName);
+		room = connection.room;
+		leave = connection.leave;
+
+		// others 訂閱
+		const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
+			others = updatedOthers as Array<unknown>;
+		});
+
 		try {
 			const { root } = await room.getStorage();
-			storageRoot = root as unknown as LiveObject<unknown>;
+			storageRoot = root as unknown as LiveObject<LiveRoot>;
 			storageInitialized = true;
 
 			// 若尚未存在 groups，初始化一次
 			try {
-				const existing = (storageRoot as unknown as { get: (key: string) => unknown }).get(
-					'groups'
-				);
+				const existing = storageRoot.get('groups');
 				if (!existing) {
-					(storageRoot as unknown as { set: (key: string, value: unknown) => void }).set(
+					storageRoot.set(
 						'groups',
-						new LiveList<unknown>(groups.map((g) => toLiveGroup(g)))
+						new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)))
 					);
 				}
 			} catch (e) {
 				console.error('storage groups init error', e);
 			}
 
-			const unsubscribeStorage = room.subscribe(storageRoot as unknown as object, () => {
+			const unsubscribeStorage = room.subscribe(storageRoot!, () => {
 				try {
-					const immutable = (
-						storageRoot as unknown as { toImmutable: () => { groups?: unknown } }
-					).toImmutable();
-					const groupsPlain = (
-						immutable && immutable.groups ? (immutable.groups as unknown) : []
-					) as Array<Record<string, unknown>>;
+					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+					const groupsPlain = immutable.groups;
 					if (groupsPlain) {
 						groups = groupsPlain.map((lg) => ({
-							id: String((lg as Record<string, unknown>).id ?? ''),
-							members: (
-								((lg as Record<string, unknown>).members ?? []) as Array<Record<string, unknown>>
-							).map((m) => ({
+							id: String(lg.id ?? ''),
+							members: (lg.members ?? []).map((m) => ({
 								profession: String(m.profession ?? ''),
 								isDriver: !!m.isDriver,
 								isHelper: !!m.isHelper,
 								playerId: String(m.playerId ?? ''),
 								gearScore: (m.gearScore as string | number | undefined) ?? ''
 							})),
-							departureDate: String((lg as Record<string, unknown>).departureDate ?? ''),
-							departureTime: String((lg as Record<string, unknown>).departureTime ?? ''),
-							dungeonName: String((lg as Record<string, unknown>).dungeonName ?? ''),
-							level: String((lg as Record<string, unknown>).level ?? ''),
-							gearScoreReq: String((lg as Record<string, unknown>).gearScoreReq ?? ''),
-							contentType: String((lg as Record<string, unknown>).contentType ?? ''),
-							changeLog: (
-								((lg as Record<string, unknown>).changeLog ?? []) as Array<Record<string, unknown>>
-							).map((c) => ({
+							departureDate: String(lg.departureDate ?? ''),
+							departureTime: String(lg.departureTime ?? ''),
+							dungeonName: String(lg.dungeonName ?? ''),
+							level: String(lg.level ?? ''),
+							gearScoreReq: String(lg.gearScoreReq ?? ''),
+							contentType: String(lg.contentType ?? ''),
+							changeLog: (lg.changeLog ?? []).map((c) => ({
 								id: String(c.id ?? ''),
 								timestamp: c.timestamp ? new Date(String(c.timestamp)) : new Date(),
 								gameId: String(c.gameId ?? ''),
@@ -204,7 +234,10 @@
 			});
 
 			onDestroy(() => {
+				unsubscribeOthers();
 				unsubscribeStorage();
+				unsubPage();
+				if (leave) leave();
 			});
 		} catch (e) {
 			console.error('init storage error', e);
@@ -486,9 +519,6 @@
 
 			pendingUpdates.set(key, pending);
 		}
-
-		// 同步到 Storage（成員層級欄位變更）
-		syncLocalGroupsToStorage();
 
 		// 同步到 Storage（成員層級欄位變更）
 		syncLocalGroupsToStorage();

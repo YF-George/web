@@ -5,7 +5,5 @@ export const client = createClient({
 	authEndpoint: '/api/liveblocks/auth'
 });
 
-export const { room, leave } = client.enterRoom('my-room');
-
-// 若需動態房間，可改為：
-// export const enterRoom = (name: string) => client.enterRoom(name);
+// 動態建立房間
+export const enterRoom = (name: string) => client.enterRoom(name);
