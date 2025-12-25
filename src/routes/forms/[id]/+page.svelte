@@ -363,6 +363,8 @@
 				action = '更新發車日期';
 			} else if (pending.field === 'departureTime') {
 				action = '更新發車時間';
+			} else if (pending.field === 'status') {
+				action = '更新狀態';
 			}
 			// 新格式：顯示舊值與新值
 			details = `「${fieldLabel}」(${String(pending.oldValue)}) 更新為 (${String(
@@ -468,10 +470,8 @@
 		};
 		const newGroup = createEmptyGroup(newId, creationLog);
 		groups = [...groups, newGroup];
-		activeGroupId = newGroup.id;
 		renumberGroups();
-
-		// 同步到儲存層
+		// 同步到儲存層（renumberGroups 內也會同步，但保持明確性）
 		syncLocalGroupsToStorage();
 	}
 
