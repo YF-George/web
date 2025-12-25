@@ -632,61 +632,57 @@
 </svelte:head>
 
 {#if !isLoggedIn}
-	<div class="circuit-wrapper">
-		<div class="circuit-background"></div>
+	<div class="login-container">
+		<div class="login-card">
+			<div class="login-header">
+				<h1>⚔️ 團隊管理系統</h1>
+				<p class="login-subtitle">請先登入以開始管理您的團隊</p>
+			</div>
 
-		<div class="container">
-			<div class="login-card">
-				<div class="login-header">
-					<h1>⚔️ 團隊管理系統</h1>
-					<p class="login-subtitle">請先登入以開始管理您的團隊</p>
-				</div>
+			{#if status && !isLoggedIn}
+				<div class="login-status error">{status}</div>
+			{/if}
 
-				{#if status && !isLoggedIn}
-					<div class="login-status error">{status}</div>
-				{/if}
+			<form
+				class="login-form"
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleLogin();
+				}}
+			>
+				<label class="login-label">
+					<span class="login-label-text">遊戲 ID <span class="required">*</span></span>
+					<input
+						type="text"
+						class="login-input"
+						placeholder="請輸入您的遊戲 ID"
+						value={gameId}
+						oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
+					/>
+				</label>
 
-				<form
-					class="login-form"
-					onsubmit={(e) => {
-						e.preventDefault();
-						handleLogin();
-					}}
-				>
-					<label class="login-label">
-						<span class="login-label-text">遊戲 ID <span class="required">*</span></span>
-						<input
-							type="text"
-							class="login-input"
-							placeholder="請輸入您的遊戲 ID"
-							value={gameId}
-							oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
-						/>
-					</label>
+				<label class="login-label">
+					<span class="login-label-text">密碼</span>
+					<input
+						type="password"
+						class="login-input"
+						placeholder="選填，輸入後以管理員模式登入"
+						value={uid}
+						oninput={(e) => (uid = (e.target as HTMLInputElement).value)}
+					/>
+				</label>
 
-					<label class="login-label">
-						<span class="login-label-text">密碼</span>
-						<input
-							type="password"
-							class="login-input"
-							placeholder="選填，輸入後以管理員模式登入"
-							value={uid}
-							oninput={(e) => (uid = (e.target as HTMLInputElement).value)}
-						/>
-					</label>
+				<button type="submit" class="login-button" disabled={isLoading}>
+					{#if isLoading}
+						⏳ 驗證中...
+					{:else}
+						進入系統
+					{/if}
+				</button>
+			</form>
 
-					<button type="submit" class="login-button" disabled={isLoading}>
-						{#if isLoading}
-							⏳ 驗證中...
-						{:else}
-							進入系統
-						{/if}
-					</button>
-				</form>
-
-				<div class="login-footer">
-					<p>💡 提示：無密碼登入為一般玩家，輸入密碼登入為管理員</p>
-				</div>
+			<div class="login-footer">
+				<p>💡 提示：無密碼登入為一般玩家，輸入密碼登入為管理員</p>
 			</div>
 		</div>
 	</div>
