@@ -1,5 +1,4 @@
-import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
-
 export const load = () => {
-	injectSpeedInsights();
+	// keep layout load lightweight; Speed Insights injection is handled server-side in hooks
+	return {};
 };
