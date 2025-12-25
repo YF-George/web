@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
 	import { enterRoom } from '$lib/room';
@@ -931,6 +931,22 @@
 									<option value="俠境">俠境</option>
 									<option value="百業">百業</option>
 									<option value="百業+俠境">百業+俠境</option>
+								</select>
+							</label>
+							<label class="departure-label status-label" style="margin-left: auto;">
+								<select
+									class="departure-input status-select"
+									class:recruit={getActiveGroup().status === '招募中'}
+									class:ready={getActiveGroup().status === '已準備'}
+									class:done={getActiveGroup().status === '已出團'}
+									aria-label="團隊狀態"
+									value={getActiveGroup().status ?? '招募中'}
+									onchange={(e) =>
+										updateGroupStatus(activeGroupId, (e.target as HTMLSelectElement).value)}
+								>
+									<option value="招募中">招募中</option>
+									<option value="已準備">已準備</option>
+									<option value="已出團">已出團</option>
 								</select>
 							</label>
 						</div>

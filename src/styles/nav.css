@@ -130,3 +130,27 @@
 	font-weight: 600;
 	border: none;
 }
+
+/* Status-aware tab coloring
+   - 招募中: 藍色 (recruit)
+   - 已準備: 綠色 (ready)
+   - 已出團: 紅色 (done)
+   行為：非選取 tab 半透明；被選取的 tab 使用飽和漸層色 */
+.tab { opacity: 0.65; transition: background 160ms ease, opacity 160ms ease; }
+.tab.active { opacity: 1; }
+
+.tab.recruit { background: linear-gradient(180deg, rgba(37,99,235,0.10), rgba(37,99,235,0.06)); color: #0f172a; }
+.tab.recruit.active { background: linear-gradient(135deg,#2563eb,#1e40af); color: #fff; border-color: transparent; }
+
+.tab.ready { background: linear-gradient(180deg, rgba(16,185,129,0.10), rgba(16,185,129,0.06)); color: #0f172a; }
+.tab.ready.active { background: linear-gradient(135deg,#10b981,#059669); color: #fff; border-color: transparent; }
+
+.tab.done { background: linear-gradient(180deg, rgba(239,68,68,0.10), rgba(239,68,68,0.06)); color: #0f172a; }
+.tab.done.active { background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; border-color: transparent; }
+
+/* Status select styles (small pill on the right of the row) */
+.status-select { min-width: 10rem; padding: 0.375rem 0.5rem; border-radius: 8px; font-weight: 600; }
+.status-select.recruit { border: 1px solid #2563eb; background: rgba(37,99,235,0.04); color: #0f172a; }
+.status-select.ready { border: 1px solid #10b981; background: rgba(16,185,129,0.04); color: #0f172a; }
+.status-select.done { border: 1px solid #ef4444; background: rgba(239,68,68,0.04); color: #0f172a; }
+
