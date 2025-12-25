@@ -76,15 +76,16 @@
 .tabs-wrapper {
 	width: 100%;
 	display: block;
-	padding: 0.5rem;
+	padding: 0.8rem;
 	border-radius: 12px;
 	border: 1px solid #e5e7eb;
-	background: rgba(255, 255, 255, 0.72);
+	background: rgba(248, 248, 248, 0.904);
 	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
 }
 
 .tab {
-	padding: 0.45rem 0.7rem;
+	padding: 0.45rem 0.85rem;
+	border-radius: 8px;
 }
 
 .tab:hover {
@@ -128,4 +129,62 @@
 	color: #fff;
 	font-weight: 600;
 	border: none;
+}
+
+/* =========================================================
+   星期顯示樣式（Weekday appearance）
+   - 用於顯示一週七天的列（例如排程、日期選擇或標籤）
+   - 顯示短文案（週一 / 週二）為主，並提供今日高亮樣式
+*/
+.weekday-list {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.weekday-item {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2.4rem;
+	height: 2.4rem;
+	padding: 0 0.5rem;
+	border-radius: 999px; /* pill */
+	font-size: 0.85rem;
+	font-weight: 600;
+	color: #374151;
+	background: transparent;
+	border: 1px solid transparent;
+	cursor: default;
+}
+
+.weekday-item.today {
+	background: linear-gradient(135deg, #2563eb, #1e40af);
+	color: #fff;
+	box-shadow: 0 6px 18px rgba(30, 64, 175, 0.12);
+}
+
+.weekday-item.muted {
+	color: #9ca3af;
+}
+
+/* 可點選的 weekday（例如切換每日檢視） */
+.weekday-item.clickable {
+	cursor: pointer;
+}
+.weekday-item.clickable:hover {
+	background: #f3f4f6;
+}
+
+/* 小螢幕縮放：把 pill 改為圓形只顯示短字 */
+@media (max-width: 520px) {
+	.weekday-item {
+		min-width: 2rem;
+		height: 2rem;
+		padding: 0;
+		font-size: 0.8rem;
+	}
 }
