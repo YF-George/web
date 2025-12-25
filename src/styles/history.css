@@ -1,15 +1,103 @@
+/*
+  history.css
+  中文註解：
+  - 功能：活動 / 歷程清單的樣式，包含整段區塊 (`.history-section`)、條目列表與單一記錄 (`.history-entry`) 的顯示。
+  - 主要 selectors：`.history-section`、`.history-list`、`.history-entry`、`.history-details`、`.history-user`。
+  - 注意事項：`.history-entry` 使用 `flex-wrap: wrap` 允許內容換行，適合包含較長訊息或多個 metadata 的情況。
+*/
+
+.history-section {
+	background: white;
+	border-radius: 12px;
+	padding: 2rem;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Header: title + small stats row */
+.history-header-wrapper {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+.history-header-wrapper h2 {
+	margin: 0;
+	font-size: 1.25rem;
+	color: #111827;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+.history-header-wrapper h2::before {
+	content: '📋';
+	font-size: 1.1rem;
+	display: inline-block;
+}
+
+.history-stats {
+	display: flex;
+	gap: 1rem;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.stat-item {
+	color: #6b7280;
+	font-size: 0.95rem;
+	background: rgba(15, 23, 42, 0.03);
+	padding: 0.25rem 0.6rem;
+	border-radius: 999px;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+.stat-item strong {
+	color: #111827;
+	font-weight: 700;
+}
+
+.history-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.375rem;
+}
+
 .history-entry {
-	@apply flex flex-wrap items-center gap-3 rounded-lg border-l-4 border-indigo-400 bg-white px-3 py-2 text-sm transition hover:shadow-md;
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 0.75rem;
+	border-radius: 8px;
+	border: 1px solid #e5e7eb;
+	border-left: 3px solid #667eea;
+	background: white;
+	flex-wrap: wrap;
 }
 
-.history-time {
-	@apply text-xs whitespace-nowrap text-slate-400;
-}
-
-.history-detail {
-	@apply flex-1 text-slate-600;
+.history-details {
+	flex: 1;
+	font-size: 0.85rem;
+	color: #4b5563;
 }
 
 .history-user {
-	@apply text-xs text-slate-400;
+	font-size: 0.75rem;
+	color: #9ca3af;
+}
+
+/* 小統計項目（例如：變更數 / 最後更新 / 其他線上人數） */
+.stat-item {
+	color: #6b7280;
+	font-size: 0.95rem;
+}
+.stat-item strong {
+	color: #1f2937;
+	font-weight: 700;
+}
+.stat-item.warning {
+	color: #92400e;
+	background: #fef3c7;
+	border-radius: 6px;
+	padding: 0.25rem 0.75rem;
+	font-weight: 600;
 }

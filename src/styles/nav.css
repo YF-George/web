@@ -1,0 +1,140 @@
+/*
+  nav.css
+  中文註解：
+  - 功能：導覽列內部項目（link / list / actions）的樣式，包含 active 狀態與使用者區塊的小樣式。
+  - 主要 selectors：`.nav-list`、`.nav-link`、`.nav-actions`、`.nav-user`、`.nav-role`。
+  - 注意事項：當視覺主題變更（深色模式 / 色票）時，請在此調整 active / hover 顏色。
+*/
+
+.nav-list {
+	display: flex;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.nav-link {
+	padding: 0.45rem 0.75rem;
+	border-radius: 8px;
+	font-weight: 600;
+	color: #374151;
+	cursor: pointer;
+}
+
+.nav-link.active {
+	background: #2563eb;
+	color: white;
+}
+
+.nav-actions {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+.nav-user {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+.nav-role {
+	/* 使用者角色標籤（例如：一般玩家 / 管理員）
+	   加回 badge 樣式以提升可見性 */
+	font-size: 0.85rem;
+	color: #fff;
+	background: linear-gradient(135deg, #fbbf24, #f59e0b);
+	border-radius: 8px;
+	padding: 0.25rem 0.5rem;
+	font-weight: 600;
+}
+
+/* =========================================================
+   Tabs / Group list (團隊標籤)
+   - 用在表單頁上方的分頁式團隊標籤：`團隊 1 ×`、`+ 添加團隊`
+   - 放在 nav partial 以便全站共用樣式
+*/
+.tabs {
+	/* 回復為原本內容寬度的排列：以 flex 排列，維持 tab 原始大小 */
+	display: flex;
+	flex-wrap: wrap; /* 多個 tab 時可換行 */
+	gap: 0.5rem;
+	align-items: center;
+	width: auto;
+}
+
+/* 如果頁面未使用 .tabs-wrapper，改套在 .tabs-header 上以確保區塊可見 */
+.tabs-header {
+	padding: 0.5rem 0rem;
+}
+
+/* 外層大框：包覆整個標籤列（如 團隊 1 × 團隊 2 × + 添加團隊）
+   使用此容器可統一外框、背景與間距，讓區塊在版面上更突出 */
+.tabs-wrapper {
+	width: 100%;
+	display: block;
+	padding: 1rem;
+	border-radius: 12px;
+	border: 1px solid #e5e7eb;
+	background: rgba(255, 255, 255, 0.72);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+}
+
+.tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	padding: 0.45rem 0.68rem;
+	border-radius: 8px;
+	border: 1px solid #e5e7eb;
+	background: #fff;
+	color: #374151;
+	font-weight: 600;
+	transition:
+		background 0.12s,
+		color 0.12s,
+		border-color 0.12s;
+}
+
+.tab:hover {
+	background: #f9fafb;
+	color: #1f2937;
+}
+
+.tab.active {
+	background: #2563eb;
+	color: #fff;
+	border-color: #2563eb;
+}
+
+.tab-close {
+	margin-left: 0.25rem;
+	font-weight: 700;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.2rem;
+	height: 1.2rem;
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.tab-close:hover {
+	color: #dc2626;
+}
+
+.tab-add {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	cursor: pointer;
+	padding: 0.45rem 0.75rem;
+	border-radius: 8px;
+	background: linear-gradient(135deg, #10b981, #059669);
+	color: #fff;
+	font-weight: 600;
+	border: none;
+}

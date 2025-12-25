@@ -1,30 +1,36 @@
+/*
+  background.css
+  中文註解：
+  - 功能：定義全站共用的 circuit pattern 背景樣式，並確保該背景固定在視窗且位於內容下方。
+  - 主要 selectors：`.circuit-wrapper`（版面包覆容器）、`.circuit-background`（實際背景圖層）、`.circuit-content`（用於把內容放到背景之上）。
+  - 注意事項：背景使用 `position: fixed` 與 `z-index: -1`，若頁面有使用 fixed/absolute 元件或 overlay，請留意 z-index 衝突。
+*/
+
 .circuit-wrapper {
 	min-height: 100vh;
 	position: relative;
-	width: 100%;
 }
 
 .circuit-background {
-	position: absolute;
-	inset: 0;
-	z-index: 0;
+	/* make background sit beneath all page content */
+	/* Use !important to avoid accidental overrides from component styles */
+	position: fixed !important;
+	inset: 0 !important;
+	z-index: -1 !important;
 	pointer-events: none;
 	background-color: var(--bg);
+	/* subtle circuit pattern */
 	background-image:
-		repeating-linear-gradient(
-			0deg,
-			transparent,
-			transparent 19px,
-			rgba(75, 85, 99, 0.08) 19px,
-			rgba(75, 85, 99, 0.08) 20px
-		),
-		repeating-linear-gradient(
-			90deg,
-			transparent,
-			transparent 19px,
-			rgba(75, 85, 99, 0.08) 19px,
-			rgba(75, 85, 99, 0.08) 20px
-		),
-		radial-gradient(circle at 20px 20px, rgba(55, 65, 81, 0.12) 2px, transparent 2px);
+		repeating-linear-gradient(0deg, transparent 0 19px, rgba(75, 85, 99, 0.08) 19px 20px),
+		repeating-linear-gradient(90deg, transparent 0 19px, rgba(75, 85, 99, 0.08) 19px 20px),
+		radial-gradient(circle at 20px 20px, rgba(55, 65, 81, 0.12) 2px, transparent 2px),
+		radial-gradient(circle at 40px 40px, rgba(55, 65, 81, 0.12) 2px, transparent 2px);
 	background-size: 40px 40px;
+	/* ensure the background repaints correctly on some browsers */
+	-webkit-transform: translateZ(0);
+}
+
+.circuit-content {
+	position: relative;
+	z-index: 1;
 }

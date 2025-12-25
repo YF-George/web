@@ -1,0 +1,35 @@
+/*
+  layout-core.css
+  中文註解：
+  - 功能：網站的核心版面樣式，包含頁面容器、工具列與主導覽列的基礎規則。
+  - 主要 selectors：`.container`（版心寬度與置中）、`.toolbar`（水平置中工具列）、`.main-nav`（sticky 導覽列）。
+  - 注意事項：`.main-nav` 使用 `position: sticky` 與 `z-index: 60`，如新增 modal/drawer，請檢查 z-index 協調。
+*/
+
+.container {
+	max-width: 1400px;
+	margin: 0 auto;
+	padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.toolbar {
+	display: flex;
+	justify-content: center;
+}
+
+.main-nav {
+	position: sticky;
+	top: 0;
+	z-index: 60;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 0.5rem 0.75rem;
+	border-radius: 12px;
+	background: linear-gradient(90deg, #fff, #f8fafc);
+	border: 1px solid #e5e7eb;
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+}

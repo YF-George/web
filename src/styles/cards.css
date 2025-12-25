@@ -1,0 +1,216 @@
+/*
+  cards.css
+  中文註解：
+  - 功能：管理群組格（grid）與隊員卡片（member-card）的樣式，以及卡片內部表單欄位的樣式。
+  - 主要 selectors：`.group-grid`（負責多欄或單欄的響應布局）、`.member-card`（卡片容器）、`.member-card input/select`（欄位樣式）、`.role-badge`。
+  - 注意事項：包含響應式斷點（768px、769-1200px），可在此調整卡片欄位數與間距；若要改為 Tailwind 實作，可先把欄位類別逐步替換。
+*/
+/*
+  cards.css
+  中文註解：
+  - 功能：管理群組格（grid）與隊員卡片（member-card）的樣式，以及卡片內部表單欄位的樣式。
+  - 主要 selectors：`.group-grid`（負責多欄或單欄的響應布局）、`.member-card`（卡片容器）、`.member-card input/select`（欄位樣式）、`.role-badge`。
+  - 注意事項：包含響應式斷點（768px、769-1200px），可在此調整卡片欄位數與間距；若要改為 Tailwind 實作，可先把欄位類別逐步替換。
+*/
+
+.group-grid {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	gap: 1rem;
+}
+
+.member-card {
+	background: white;
+	border: 2px solid #e5e7eb;
+	border-radius: 12px;
+	padding: 0.8rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+/* Member header (號碼與角色徽章) */
+.member-header {
+	border-bottom: 2px solid #f3f4f6;
+	align-items: center;
+	gap: 0.75rem;
+	padding-bottom: 0.75rem;
+	display: flex;
+}
+.member-number {
+	color: #fff;
+	background: linear-gradient(135deg, #3b82f6, #2563eb);
+	border-radius: 50%;
+	flex-shrink: 0;
+	justify-content: center;
+	align-items: center;
+	width: 2rem;
+	height: 2rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	display: flex;
+}
+.role-badges {
+	/* Always arrange role badges horizontally (隊長 / 幫打) */
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap; /* force side-by-side */
+	gap: 0.5rem;
+	align-items: center;
+}
+.badge-checkbox {
+	cursor: pointer;
+	color: #374151; /* darker for better contrast */
+	user-select: none;
+	background: #f3f4f6;
+	border: 1px solid #e6e9ee; /* lighter border for softer look */
+	border-radius: 14px;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.25rem 0.6rem; /* slightly tighter */
+	font-size: 0.9rem;
+	font-weight: 600;
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease,
+		background-color 120ms ease,
+		color 120ms ease;
+	position: relative; /* anchor for visually-hidden input */
+}
+
+.member-card input[type='text'],
+.member-card input[type='number'],
+.member-card select {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.6rem 0.75rem;
+	border: 2px solid #e5e7eb;
+	border-radius: 8px;
+	font-size: 0.95rem;
+	transition: all 0.2s ease;
+	background: #fafafa;
+}
+
+.member-card input[type='text']:hover,
+.member-card input[type='number']:hover,
+.member-card select:hover {
+	border-color: #d1d5db;
+	background: white;
+}
+.member-card input[type='text']:focus,
+.member-card input[type='number']:focus,
+.member-card select:focus {
+	outline: none;
+	border-color: #3b82f6;
+	background: white;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.role-badge {
+	display: inline-block;
+	padding: 0.2rem 0.5rem;
+	border-radius: 6px;
+	background: #eef2ff;
+	color: #3730a3;
+	font-weight: 600;
+}
+.badge-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+/* Active / selected state for role badges */
+.badge-checkbox.active,
+.badge-checkbox[aria-pressed='true'] {
+	color: #fff;
+	background: linear-gradient(135deg, #10b981, #059669);
+	border-color: transparent;
+	box-shadow: 0 6px 18px rgba(5, 150, 105, 0.12);
+	transform: translateY(-1px);
+}
+
+/* Focus styles for keyboard accessibility */
+.badge-checkbox:focus-visible,
+.badge-checkbox input:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+	border-color: #3b82f6;
+}
+
+/* Small icon inside badge (if using emojis) - keep consistent sizing */
+.badge-checkbox > span:first-child {
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.05rem;
+	height: 1.05rem;
+}
+
+/* Visually hide native checkbox but keep it accessible/focusable */
+.badge-checkbox input[type='checkbox'] {
+	position: absolute !important;
+	left: -9999px !important;
+	width: 1px !important;
+	height: 1px !important;
+	overflow: hidden !important;
+	clip: rect(0 0 0 0) !important;
+	clip-path: inset(50%) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	opacity: 0 !important;
+}
+
+@media (max-width: 768px) {
+	.group-grid {
+		grid-template-columns: 1fr;
+	}
+}
+@media (min-width: 769px) and (max-width: 1200px) {
+	.group-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+/* 表單 — 出發/時間/副本 欄位樣式 (departure-*) */
+.departure-time-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 1rem;
+	padding: 0.25rem 0 0.75rem;
+}
+.departure-label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+.departure-input {
+	text-align: center;
+	background: #fafafa;
+	border: 2px solid #e5e7eb;
+	border-radius: 8px;
+	width: 160px;
+	padding: 0.5rem 0.75rem;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+	font-size: 0.95rem;
+	transition: all 0.12s;
+}
+.departure-input:focus {
+	background: #fff;
+	border-color: #3b82f6;
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.06);
+}
+@media (max-width: 480px) {
+	.departure-input {
+		width: 120px;
+	}
+}
+.departure-weekday {
+	display: flex;
+	align-items: center;
+	padding: 0 0.25rem;
+}

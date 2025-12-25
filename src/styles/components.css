@@ -1,7 +1,0 @@
-.card {
-	@apply rounded-xl border border-slate-200 bg-white shadow-sm;
-}
-
-.card-hover {
-	@apply transition hover:shadow-md;
-}
