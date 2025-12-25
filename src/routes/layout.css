@@ -76,6 +76,12 @@
 	z-index: 1;
 }
 
+/* Wrapper content that should sit above the circuit background */
+.circuit-content {
+	position: relative;
+	z-index: 1;
+}
+
 .login-card {
 	background: white;
 	border-radius: 20px;
