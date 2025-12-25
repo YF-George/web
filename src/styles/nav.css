@@ -64,7 +64,11 @@
 
 /* 如果頁面未使用 .tabs-wrapper，改套在 .tabs-header 上以確保區塊可見 */
 .tabs-header {
-	padding: 0.5rem 0rem;
+	padding: 0.5rem;
+	border-radius: 12px;
+	border: 1px solid #e5e7eb;
+	background: rgba(255, 255, 255, 0.72);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
 }
 
 /* 外層大框：包覆整個標籤列（如 團隊 1 × 團隊 2 × + 添加團隊）
@@ -72,7 +76,7 @@
 .tabs-wrapper {
 	width: 100%;
 	display: block;
-	padding: 1rem;
+	padding: 0.5rem;
 	border-radius: 12px;
 	border: 1px solid #e5e7eb;
 	background: rgba(255, 255, 255, 0.72);
@@ -80,20 +84,7 @@
 }
 
 .tab {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	cursor: pointer;
-	padding: 0.45rem 0.68rem;
-	border-radius: 8px;
-	border: 1px solid #e5e7eb;
-	background: #fff;
-	color: #374151;
-	font-weight: 600;
-	transition:
-		background 0.12s,
-		color 0.12s,
-		border-color 0.12s;
+	padding: 0.45rem 0.7rem;
 }
 
 .tab:hover {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { enterRoom, enterRoomWithCapacity } from '$lib/room';
+	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
 
@@ -68,8 +68,6 @@
 
 	// ---- 常數與共用工具 ----
 	const GROUP_SIZE = 10;
-	// 房間最大允許同時在線人數（含自己）。可依需求調整或改為從後端配置。
-	const MAX_ROOM_CLIENTS = 100;
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
 	const PENDING_UPDATE_DELAY = 3000; // 等待 3 秒合併多次輸入，減少紀錄雜訊
 
@@ -129,7 +127,6 @@
 	let uid = '';
 	let isLoggedIn = false;
 	let isAdmin = false;
-	let isObserver = false;
 	let isLoading = false;
 
 	// 本頁的分頁狀態（填寫/紀錄）
@@ -183,7 +180,6 @@
 	// 儲存初始化後，將本地資料寫回 Liveblocks
 	function syncLocalGroupsToStorage() {
 		if (!storageInitialized || !storageRoot) return;
-		if (isObserver) return; // 觀察者為唯讀，避免覆寫儲存層
 		try {
 			const liveGroups = new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)));
 			storageRoot!.set('groups', liveGroups);
@@ -199,83 +195,14 @@
 			roomName = (p.params?.id as string) || 'my-room';
 		});
 
-		const res = await enterRoomWithCapacity(roomName, MAX_ROOM_CLIENTS);
-		if (!res.ok) {
-			// 若房間已滿且不允許觀察者，提示並中止後續初始化
-			status = '❌ 房間人數已達上限，請稍後再試';
-			unsubPage();
-			return;
-		}
-		const connection = res.connection;
+		const connection = enterRoom(roomName);
 		room = connection.room;
 		leave = connection.leave;
-		// 若後端/檢查回傳 observer 標記，切換為觀察者模式
-		const observerFlag = (res as { observer?: unknown }).observer;
-		isObserver = Boolean(observerFlag);
-		if (isObserver) {
-			status = '🔍 你以觀察者身份加入，畫面為唯讀。若閒置超過 3 分鐘將自動離開。';
-			// 讓狀態可見一段時間
-			setTimeout(() => (status = ''), 5000);
-		}
 
 		// others 訂閱
 		const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
 			others = updatedOthers as Array<unknown>;
 		});
-
-		// 若為觀察者，啟動閒置監控，超過時間自動離開
-		let _observerTimer: ReturnType<typeof setTimeout> | null = null;
-		let _observerListeners: Array<{ type: string; fn: EventListenerOrEventListenerObject }> = [];
-		const OBSERVER_IDLE_MS = 3 * 60 * 1000; // 3 分鐘
-
-		function _resetObserverTimer() {
-			if (_observerTimer) clearTimeout(_observerTimer);
-			_observerTimer = setTimeout(() => {
-				// 自動離開觀察者
-				try {
-					if (leave) leave();
-					status = '⚠️ 已因長時間閒置自動離開觀察者';
-				} catch (e) {
-					console.error('observer auto-leave error', e);
-				}
-			}, OBSERVER_IDLE_MS);
-		}
-
-		function _startObserverMonitor() {
-			if (!browser) return;
-			_resetObserverTimer();
-			const events = ['mousemove', 'keydown', 'touchstart', 'click'];
-			for (const ev of events) {
-				const fn = () => _resetObserverTimer();
-				window.addEventListener(ev, fn);
-				_observerListeners.push({ type: ev, fn });
-			}
-			// visibilitychange 也會重置
-			const visFn = () => {
-				if (document.visibilityState === 'visible') _resetObserverTimer();
-			};
-			window.addEventListener('visibilitychange', visFn);
-			_observerListeners.push({ type: 'visibilitychange', fn: visFn });
-		}
-
-		function _stopObserverMonitor() {
-			if (_observerTimer) {
-				clearTimeout(_observerTimer);
-				_observerTimer = null;
-			}
-			for (const l of _observerListeners) {
-				try {
-					window.removeEventListener(l.type, l.fn as EventListener);
-				} catch {
-					// ignore
-				}
-			}
-			_observerListeners = [];
-		}
-
-		if (isObserver) {
-			_startObserverMonitor();
-		}
 
 		try {
 			// 儲存根節點包含共享的團隊清單
@@ -286,8 +213,7 @@
 			// 若尚未存在 groups，初始化一次
 			try {
 				const existing = storageRoot.get('groups');
-				if (!existing && !isObserver) {
-					// 只有非觀察者才會初始化儲存層（避免觀察者覆寫）
+				if (!existing) {
 					storageRoot.set(
 						'groups',
 						new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)))
@@ -337,8 +263,6 @@
 			});
 
 			onDestroy(() => {
-				// 停止觀察者監控
-				_stopObserverMonitor();
 				unsubscribeOthers();
 				unsubscribeStorage();
 				unsubPage();
