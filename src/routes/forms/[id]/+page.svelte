@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { enterRoom } from '$lib/room';
+	import { enterRoom, enterRoomWithCapacity } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
 
@@ -68,6 +68,8 @@
 
 	// ---- 常數與共用工具 ----
 	const GROUP_SIZE = 10;
+	// 房間最大允許同時在線人數（含自己）。可依需求調整或改為從後端配置。
+	const MAX_ROOM_CLIENTS = 100;
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
 	const PENDING_UPDATE_DELAY = 3000; // 等待 3 秒合併多次輸入，減少紀錄雜訊
 
@@ -195,7 +197,15 @@
 			roomName = (p.params?.id as string) || 'my-room';
 		});
 
-		const connection = enterRoom(roomName);
+		const res = await enterRoomWithCapacity(roomName, MAX_ROOM_CLIENTS);
+		if (!res.ok) {
+			// 若房間已滿，提示並中止後續初始化
+			status = '❌ 房間人數已達上限，請稍後再試';
+			// 解除路由訂閱後回傳（避免繼續執行）
+			unsubPage();
+			return;
+		}
+		const connection = res.connection;
 		room = connection.room;
 		leave = connection.leave;
 

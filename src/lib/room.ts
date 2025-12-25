@@ -34,3 +34,57 @@ export const enterRoom = (name = 'my-room') => {
 	const roomName = normalizeRoomName(name);
 	return client.enterRoom(roomName);
 };
+
+// 進房但檢查人數上限：
+// - 如果當前房內其他人數 >= maxClients，會自動 leave 並回傳 { ok: false, reason: 'full' }
+// - 否則回傳原本的 connection 物件並標記 ok: true
+export const enterRoomWithCapacity = async (name = 'my-room', maxClients = 100) => {
+	const roomName = normalizeRoomName(name);
+	const connection = client.enterRoom(roomName);
+	const room = connection.room;
+
+	return new Promise((resolve) => {
+		let resolved = false;
+
+		// 訂閱一次 others 並立即檢查人數
+		const unsub = room.subscribe('others', (others) => {
+			if (resolved) return;
+			resolved = true;
+			try {
+				const count = Array.isArray(others) ? others.length : 0;
+				if (count >= maxClients) {
+					// 房間已滿，離開並回報
+					try {
+						connection.leave();
+					} catch {
+						// 忽略離開錯誤
+					}
+					resolve({ ok: false, reason: 'full' });
+				} else {
+					resolve({ ok: true, connection });
+				}
+			} finally {
+				try {
+					unsub();
+				} catch {
+					// 忽略 unsubscribe 錯誤
+				}
+			}
+		});
+
+		// 若在短時間內沒有觸發訂閱（極端情況），以保守策略允許進入
+		setTimeout(() => {
+			if (resolved) return;
+			resolved = true;
+			try {
+				resolve({ ok: true, connection });
+			} finally {
+				try {
+					unsub();
+				} catch {
+					// 忽略 unsubscribe 錯誤
+				}
+			}
+		}, 600);
+	});
+};
