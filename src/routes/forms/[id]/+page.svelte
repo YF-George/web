@@ -98,14 +98,20 @@
 
 	// 建立一個空團隊，並可選擇帶入初始變更紀錄
 	// 可傳入 preservedMembers：會把指定的固定成員放在前面，然後以預設成員補滿到 GROUP_SIZE
-	function createEmptyGroup(id: string, changeLogEntry?: ChangeLog, preservedMembers: GroupMember[] = []): LocalGroup {
+	function createEmptyGroup(
+		id: string,
+		changeLogEntry?: ChangeLog,
+		preservedMembers: GroupMember[] = []
+	): LocalGroup {
 		const defaults = buildDefaultMembers();
 		// 移除預設中與 preservedMembers 有相同 playerId 的預設成員
 		const uniquePreserved = preservedMembers.filter(Boolean);
 		const remainingSlots = Math.max(0, GROUP_SIZE - uniquePreserved.length);
 		const finalMembers = [
 			...uniquePreserved,
-			...defaults.filter((d) => !uniquePreserved.some((p) => p.playerId && p.playerId === d.playerId)).slice(0, remainingSlots)
+			...defaults
+				.filter((d) => !uniquePreserved.some((p) => p.playerId && p.playerId === d.playerId))
+				.slice(0, remainingSlots)
 		].slice(0, GROUP_SIZE);
 
 		return {
@@ -153,59 +159,58 @@
 	let storageInitialized = false;
 	let storageRoot: LiveObject<LiveRoot> | null = null;
 
-// --- 每週重製 changelog 機制（在 storage 初始化後執行） ---
-function getMostRecentMondayMidnight(now = new Date()) {
-	// 回傳當週（或最近）星期一 00:00 的 Date（以本地時間計算）
-	const d = new Date(now);
-	const day = d.getDay(); // 0 (Sun) - 6 (Sat)
-	// 週一為 1
-	const diffToMonday = (day + 6) % 7; // days since last Monday
-	d.setHours(0, 0, 0, 0);
-	d.setDate(d.getDate() - diffToMonday);
-	return d;
-}
+	// --- 每週重製 changelog 機制（在 storage 初始化後執行） ---
+	function getMostRecentMondayMidnight(now = new Date()) {
+		// 回傳當週（或最近）星期一 00:00 的 Date（以本地時間計算）
+		const d = new Date(now);
+		const day = d.getDay(); // 0 (Sun) - 6 (Sat)
+		// 週一為 1
+		const diffToMonday = (day + 6) % 7; // days since last Monday
+		d.setHours(0, 0, 0, 0);
+		d.setDate(d.getDate() - diffToMonday);
+		return d;
+	}
 
-async function resetChangeLogsIfNeeded() {
-	if (!storageRoot || !room) return;
+	async function resetChangeLogsIfNeeded() {
+		if (!storageRoot || !room) return;
 
 		try {
 			const lastResetIso = (storageRoot as any).get('lastChangelogReset') as string | undefined;
 			const lastReset = lastResetIso ? new Date(lastResetIso) : new Date(0);
-		const now = new Date();
-		const recentMonday = getMostRecentMondayMidnight(now);
+			const now = new Date();
+			const recentMonday = getMostRecentMondayMidnight(now);
 
-		// 如果最後一次重製在最近的星期一之後，表示已經重製過；否則進行重製
-		if (lastReset >= recentMonday) {
-			return; // 已在本週一 00:00 之後重製過
-		}
-
-		// 進行重製：將每個 group.changeLog 清空，並更新 lastChangelogReset
-		const liveGroups = storageRoot.get('groups') as LiveList<LiveObject<any>> | undefined;
-		if (!liveGroups) return;
-
-		// 使用 room 的 storage transaction（若可用）或直接 set
-		// 先建立新的 LiveList（空清單）
-		const emptyList = new LiveList<LiveObject<any>>([]);
-
-		// 更新每個 group 的 changeLog
-		for (let i = 0; i < liveGroups.length; i++) {
-			const g = liveGroups.get(i) as LiveObject<any> | undefined;
-			if (!g) continue;
-			try {
-				g.set('changeLog', new LiveList<LiveObject<any>>([]));
-			} catch (e) {
-				console.warn('resetChangeLogs: failed to set changeLog for group', i, e);
+			// 如果最後一次重製在最近的星期一之後，表示已經重製過；否則進行重製
+			if (lastReset >= recentMonday) {
+				return; // 已在本週一 00:00 之後重製過
 			}
+
+			// 進行重製：將每個 group.changeLog 清空，並更新 lastChangelogReset
+			const liveGroups = storageRoot.get('groups') as LiveList<LiveObject<any>> | undefined;
+			if (!liveGroups) return;
+
+			// 使用 room 的 storage transaction（若可用）或直接 set
+			// 先建立新的 LiveList（空清單）
+			const emptyList = new LiveList<LiveObject<any>>([]);
+
+			// 更新每個 group 的 changeLog
+			for (let i = 0; i < liveGroups.length; i++) {
+				const g = liveGroups.get(i) as LiveObject<any> | undefined;
+				if (!g) continue;
+				try {
+					g.set('changeLog', new LiveList<LiveObject<any>>([]));
+				} catch (e) {
+					console.warn('resetChangeLogs: failed to set changeLog for group', i, e);
+				}
+			}
+
+			// 更新 lastChangelogReset
+			(storageRoot as any).set('lastChangelogReset', new Date().toISOString());
+			console.info('changeLog reset performed at', new Date().toISOString());
+		} catch (e) {
+			console.error('resetChangeLogsIfNeeded error', e);
 		}
-
-		// 更新 lastChangelogReset
-		(storageRoot as any).set('lastChangelogReset', new Date().toISOString());
-		console.info('changeLog reset performed at', new Date().toISOString());
-	} catch (e) {
-		console.error('resetChangeLogsIfNeeded error', e);
 	}
-}
-
 
 	function toLiveGroup(g: LocalGroup): LiveObject<LiveGroup> {
 		return new LiveObject<LiveGroup>({
@@ -290,12 +295,12 @@ async function resetChangeLogsIfNeeded() {
 				console.error('storage groups init error', e);
 			}
 
-				// 檢查是否需要在每週一 00:00 重製 changeLog（第一次初始化時執行）
-				try {
-					await resetChangeLogsIfNeeded();
-				} catch (e) {
-					console.warn('resetChangeLogsIfNeeded failed', e);
-				}
+			// 檢查是否需要在每週一 00:00 重製 changeLog（第一次初始化時執行）
+			try {
+				await resetChangeLogsIfNeeded();
+			} catch (e) {
+				console.warn('resetChangeLogsIfNeeded failed', e);
+			}
 
 			// Liveblocks Storage -> 本地 state，保持雙向同步
 			// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
