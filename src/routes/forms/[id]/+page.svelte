@@ -18,6 +18,7 @@
 		members: GroupMember[];
 		departureTime?: string; // 格式: HH:mm (24 小時)
 		departureDate?: string; // 格式: YYYY-MM-DD
+		status?: string; // '招募中' | '已準備' | '已出團'
 		dungeonName?: string; // 副本名稱
 		level?: string; // 等級
 		gearScoreReq?: string; // 裝分限制
@@ -98,6 +99,7 @@
 		return {
 			id,
 			members: buildDefaultMembers(),
+			status: '招募中',
 			departureDate: '',
 			departureTime: '',
 			changeLog: changeLogEntry ? [changeLogEntry] : []
@@ -157,6 +159,7 @@
 			),
 			departureDate: g.departureDate || '',
 			departureTime: g.departureTime || '',
+			status: g.status || '招募中',
 			dungeonName: g.dungeonName || '',
 			level: g.level || '',
 			gearScoreReq: g.gearScoreReq || '',
@@ -239,6 +242,7 @@
 								playerId: String(m.playerId ?? ''),
 								gearScore: (m.gearScore as string | number | undefined) ?? ''
 							})),
+							status: String(lg.status ?? '招募中'),
 							departureDate: String(lg.departureDate ?? ''),
 							departureTime: String(lg.departureTime ?? ''),
 							dungeonName: String(lg.dungeonName ?? ''),
@@ -292,7 +296,10 @@
 
 		if (pending.index !== undefined) {
 			// 成員詳細記錄
-			details = `成員 ${pending.index + 1} 的「${fieldLabel}」更新為「${pending.newValue}」`;
+			// 新格式：顯示舊值與新值
+			details = `成員 ${pending.index + 1} 的「${fieldLabel}」(${String(
+				pending.oldValue
+			)}) 更新為 (${String(pending.newValue)})`;
 		} else {
 			// 團隊級欄位
 			if (pending.field === 'departureDate') {
@@ -300,7 +307,10 @@
 			} else if (pending.field === 'departureTime') {
 				action = '更新發車時間';
 			}
-			details = `「${fieldLabel}」更新為「${pending.newValue}」`;
+			// 新格式：顯示舊值與新值
+			details = `「${fieldLabel}」(${String(pending.oldValue)}) 更新為 (${String(
+				pending.newValue
+			)})`;
 		}
 
 		group.changeLog = [
@@ -588,6 +598,28 @@
 		syncLocalGroupsToStorage();
 	}
 
+	function updateGroupStatus(groupId: string, value: string) {
+		const oldStatus = groups.find((g) => g.id === groupId)?.status;
+		groups = groups.map((g) => (g.id === groupId ? { ...g, status: value } : g));
+		if (oldStatus !== value) {
+			const key = `status-${groupId}`;
+			if (pendingUpdates.has(key)) {
+				clearTimeout(pendingUpdates.get(key)!.timeout);
+			}
+			const pending: PendingUpdate = {
+				groupId,
+				field: 'status',
+				oldValue: oldStatus || '',
+				newValue: value,
+				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
+			};
+			pendingUpdates.set(key, pending);
+		}
+
+		// 同步到儲存層（狀態變更）
+		syncLocalGroupsToStorage();
+	}
+
 	// 使用 Zeller 演算法由 YYYY-MM-DD 推算星期
 	function getGroupWeekday(g: LocalGroup) {
 		const d = (g.departureDate || '').trim();
@@ -691,8 +723,7 @@
 		<div class="login-container">
 			<div class="login-card">
 				<div class="login-header">
-					<h1>⚔️ 團隊管理系統</h1>
-					<p class="login-subtitle">請先登入以開始管理您的團隊</p>
+					<h1>團隊管理系統</h1>
 				</div>
 
 				{#if status && !isLoggedIn}
@@ -737,9 +768,7 @@
 					</button>
 				</form>
 
-				<div class="login-footer">
-					<p>💡 提示：無密碼登入為一般玩家，輸入密碼登入為管理員</p>
-				</div>
+				<!-- login footer removed per request -->
 			</div>
 		</div>
 	</div>
@@ -771,7 +800,7 @@
 					</li>
 				</ul>
 				<div class="nav-actions">
-					<span class="nav-user">{isAdmin ? '👑 ' : ''}{isAdmin ? '千羽夜' : gameId}</span>
+					<span class="nav-user">{isAdmin ? '千羽夜' : gameId}</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
@@ -799,6 +828,9 @@
 							<button
 								class="tab"
 								class:active={activeGroupId === group.id}
+								class:recruit={group.status === '招募中'}
+								class:ready={group.status === '已準備'}
+								class:done={group.status === '已出團'}
 								onclick={() => (activeGroupId = group.id)}
 							>
 								團隊 {group.id}
@@ -1096,7 +1128,7 @@
 											{:else if entry.action === '更新成員'}
 												<span class="badge badge-update">✏️ {entry.action}</span>
 											{:else if entry.action === '更新發車日期'}
-												<span class="badge badge-date">📅 {entry.action}</span>
+												<span class="badge badge-date">{entry.action}</span>
 											{:else if entry.action === '更新發車時間'}
 												<span class="badge badge-time">⏰ {entry.action}</span>
 											{:else}
@@ -1149,5 +1181,31 @@
 			padding: 0.3rem 0.6rem;
 			font-size: 0.85rem;
 		}
+	}
+
+	/* Tab 狀態色彩 */
+	.tab.recruit {
+		background-color: #2563eb; /* 招募中 - 藍 */
+		color: #fff;
+	}
+
+	.tab.ready {
+		background-color: #16a34a; /* 已準備 - 綠 */
+		color: #fff;
+	}
+
+	.tab.done {
+		background-color: #dc2626; /* 已出團 - 紅 */
+		color: #fff;
+	}
+
+	/* 非啟用 tab 半透明，啟用時回復不透明 */
+	.tab:not(.active) {
+		opacity: 0.65;
+	}
+
+	.tab.active {
+		opacity: 1;
+		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 	}
 </style>
