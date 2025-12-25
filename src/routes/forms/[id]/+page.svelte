@@ -192,6 +192,62 @@
 		}
 	}
 
+	// 讀取儲存層中的 groups 並映射到本地 groups（登入時主動呼叫）
+	function loadGroupsFromStorageOnce() {
+		if (!storageInitialized || !storageRoot) return;
+		try {
+			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+			const groupsPlain = immutable.groups;
+			if (groupsPlain) {
+				groups = groupsPlain.map((lg) => ({
+					id: String(lg.id ?? ''),
+					members: (lg.members ?? []).map((m) => ({
+						profession: String(m.profession ?? ''),
+						isDriver: !!m.isDriver,
+						isHelper: !!m.isHelper,
+						playerId: String(m.playerId ?? ''),
+						gearScore: (m.gearScore as string | number | undefined) ?? ''
+					})),
+					status: String(lg.status ?? '招募中'),
+					departureDate: String(lg.departureDate ?? ''),
+					departureTime: String(lg.departureTime ?? ''),
+					dungeonName: String(lg.dungeonName ?? ''),
+					level: String(lg.level ?? ''),
+					gearScoreReq: String(lg.gearScoreReq ?? ''),
+					contentType: String(lg.contentType ?? ''),
+					changeLog: (lg.changeLog ?? []).map((c) => ({
+						id: String(c.id ?? ''),
+						timestamp: c.timestamp ? new Date(String(c.timestamp)) : new Date(),
+						gameId: String(c.gameId ?? ''),
+						action: String(c.action ?? ''),
+						details: String(c.details ?? '')
+					}))
+				}));
+				if (!groups.find((g) => g.id === activeGroupId)) {
+					activeGroupId = groups[0]?.id || '1';
+				}
+			}
+		} catch (e) {
+			console.error('loadGroupsFromStorageOnce error', e);
+		}
+	}
+
+	// 在登入後確保儲存層已初始化後載入 groups
+	function ensureLoadGroupsAfterLogin() {
+		if (storageInitialized) {
+			loadGroupsFromStorageOnce();
+			return;
+		}
+		const interval = setInterval(() => {
+			if (storageInitialized) {
+				clearInterval(interval);
+				loadGroupsFromStorageOnce();
+			}
+		}, 200);
+		// 最多等 5 秒
+		setTimeout(() => clearInterval(interval), 5000);
+	}
+
 	// 加入房間、串接 presence 與 storage 訂閱，並在卸載時清理
 	onMount(async () => {
 		// 依路由參數設定房間名稱
@@ -352,6 +408,8 @@
 			if (result.success) {
 				isLoggedIn = true;
 				isAdmin = !!result.isAdmin;
+				// 登入成功後立即嘗試從儲存層載入現有的 groups
+				ensureLoadGroupsAfterLogin();
 			} else {
 				status = `❌ ${result.error || '登入失敗'}`;
 				setTimeout(() => (status = ''), 3000);
