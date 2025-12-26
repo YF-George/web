@@ -36,6 +36,7 @@ export interface LocalGroup {
 	level?: string;
 	gearScoreReq?: string;
 	contentType?: string;
+	notes?: string;
 	changeLog?: ChangeLog[];
 }
 
@@ -110,6 +111,7 @@ export function parseRemoteGroup(raw: unknown): LocalGroup | null {
 		level: safeString(r.level),
 		gearScoreReq: safeString(r.gearScoreReq),
 		contentType: safeString(r.contentType),
+		notes: safeString(r.notes),
 		changeLog
 	};
 }

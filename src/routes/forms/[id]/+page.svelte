@@ -104,7 +104,8 @@
 		departureDate: '開團日期',
 		departureTime: '開團時間',
 		contentType: '活動類型',
-		level: '角色等級'
+		level: '角色等級',
+		notes: '備註'
 	};
 
 	// 產生 10 人的預設成員列表（坦/奶/輸出各一，其他為輸出）
@@ -134,6 +135,7 @@
 		return {
 			id: gid,
 			members: buildDefaultMembers(),
+			notes: '',
 			status: '招募中',
 			departureDate: '',
 			departureTime: '',
@@ -1537,6 +1539,26 @@
 										</div>
 									</div>
 								{/each}
+							</div>
+
+							<!-- 備註區 -->
+							<div class="notes-area">
+								<label class="notes-label">
+									<span class="label-text">備註</span>
+									<textarea
+										class="notes-input"
+										placeholder="此團隊的備註（可留給管理員或臨時說明）"
+										value={getActiveGroup().notes ?? ''}
+										oninput={(e) =>
+											updateGroupField(
+												activeGroupId,
+												undefined,
+												'notes',
+												(e.target as HTMLTextAreaElement).value
+											)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									></textarea>
+								</label>
 							</div>
 						</div>
 					{/if}

@@ -28,6 +28,7 @@ export function toLiveGroup(g: LocalGroup) {
 		level: g.level || '',
 		gearScoreReq: g.gearScoreReq || '',
 		contentType: g.contentType || '',
+		notes: g.notes || '',
 		changeLog: new LiveList(
 			(g.changeLog || []).map(
 				(c) =>
