@@ -8,11 +8,11 @@ import globals from 'globals';
 import ts from 'typescript-eslint';
 import svelteConfig from './svelte.config.js';
 
-// Path to .gitignore so ESLint can include its ignore entries
+// 指向 .gitignore 的路徑，讓 ESLint 可以把 .gitignore 的忽略條目納入考量
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
-// Compose base configs in a readable way. We intentionally keep the existing
-// recommended configs for JS, TS and Svelte, plus Prettier to avoid conflicts.
+// 以易讀方式組合基底設定。我們保留 JS、TS 與 Svelte 的推薦設定，
+// 並加入 Prettier 以避免格式化衝突。
 const baseConfigs = [
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
@@ -25,14 +25,14 @@ const baseConfigs = [
 export default defineConfig(
 	...baseConfigs,
 	{
-		// Global environment globals available in all files
+		// 全域語言選項：在所有檔案中預設可用的 global 變數（瀏覽器與 Node）
 		languageOptions: { globals: { ...globals.browser, ...globals.node } },
 
 		rules: {
-			// TypeScript projects should not use `no-undef` as TS already handles this
-			// See: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule
+			// 因為 TypeScript 自身會處理未定義變數的檢查，建議在 TypeScript 專案中關閉 `no-undef`
+			// 參考：https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule
 			'no-undef': 'off',
-			// Disable resolve() requirement for SvelteKit 2 (resolve is deprecated in SvelteKit 2)
+			// 關閉 SvelteKit 2 中對 resolve() 的要求（在 SvelteKit 2 中 resolve 已為非推薦用法）
 			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
@@ -41,6 +41,7 @@ export default defineConfig(
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
 		languageOptions: {
 			parserOptions: {
+				// 針對 Svelte 檔案的 parser 選項，包含專案服務、額外副檔名與 TypeScript parser
 				projectService: true,
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser,

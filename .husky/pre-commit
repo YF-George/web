@@ -1,4 +1,5 @@
 #!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
 
-npx lint-staged
+# 直接呼叫 lint-staged，避免舊式 husky 引入造成的 deprecation 訊息
+# 使用 --no-install 可以避免在 CI 或未安裝 npx 時觸發安裝行為
+npx --no-install lint-staged
