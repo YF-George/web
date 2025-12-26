@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
@@ -453,7 +453,9 @@
 	onMount(async () => {
 		// 依路由參數設定房間名稱
 		const unsubPage = page.subscribe((p) => {
-			roomName = (p.params?.id as string) || 'my-room';
+			let rn = (p.params?.id as string) || 'my-room';
+			if (dev) rn = `${rn}-dev`;
+			roomName = rn;
 		});
 
 		const connection = enterRoom(roomName);
