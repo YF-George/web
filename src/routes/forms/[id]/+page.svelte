@@ -29,6 +29,7 @@
 		level?: string;
 		gearScoreReq?: string;
 		contentType?: string;
+		notes?: string;
 		changeLog?: ChangeLog[];
 	}
 
@@ -1807,6 +1808,45 @@
 	.member-number:focus {
 		outline: 2px solid rgba(37, 99, 235, 0.35);
 		outline-offset: 2px;
+	}
+
+	/* Notes area horizontal layout */
+	.notes-area {
+		margin-top: 1rem;
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+	}
+
+	.notes-label {
+		display: flex;
+		align-items: flex-start;
+		width: 100%;
+		gap: 0.75rem;
+	}
+
+	.notes-label .label-text {
+		flex: 0 0 5.5rem;
+		font-weight: 700;
+		color: #111827;
+	}
+
+	.notes-input {
+		flex: 1 1 auto;
+		min-height: 3.25rem;
+		max-height: 12rem;
+		padding: 0.5rem 0.75rem;
+		border-radius: 8px;
+		border: 1px solid #d1d5db;
+		background: #fff;
+		resize: vertical;
+		font-size: 0.95rem;
+	}
+
+	.notes-input[disabled] {
+		background: #f7f7f7;
+		color: #6b7280;
+		cursor: not-allowed;
 	}
 
 	/* 導覽列按鈕樣式：立即清空（危險/紅色）與登出（次要/藍色） */
