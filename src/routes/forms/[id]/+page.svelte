@@ -8,6 +8,8 @@
 	import { toLiveGroup } from '$lib/liveblocks';
 
 	interface GroupMember {
+		id: string;
+		order?: number;
 		profession: string;
 		isDriver: boolean;
 		isHelper: boolean;
@@ -17,6 +19,7 @@
 
 	interface LocalGroup {
 		id: string;
+		order?: number;
 		members: GroupMember[];
 		departureTime?: string; // 格式: HH:mm (24 小時)
 		departureDate?: string; // 格式: YYYY-MM-DD
@@ -30,6 +33,8 @@
 
 	// Liveblocks 儲存層型別（符合 Lson 規範）
 	type LiveGroupMember = {
+		id: string;
+		order?: number;
 		profession: string;
 		isDriver: boolean;
 		isHelper: boolean;
@@ -41,12 +46,19 @@
 		id: string;
 		timestamp: string; // ISO 字串
 		gameId: string;
+		actorId?: string;
 		action: string;
 		details: string;
+		targetType?: 'group' | 'member';
+		targetId?: string;
+		field?: string;
+		oldValue?: string | number | boolean;
+		newValue?: string | number | boolean;
 	};
 
 	type LiveGroup = {
 		id: string;
+		order?: number;
 		members: LiveList<LiveObject<LiveGroupMember>>;
 		departureDate: string;
 		departureTime: string;
@@ -66,8 +78,14 @@
 		id: string;
 		timestamp: Date;
 		gameId: string;
+		actorId?: string; // actor alias
 		action: string; // 「添加團隊」、「刪除團隊」、「更新成員」、「更新發車時間」等
 		details: string; // 詳細描述
+		targetType?: 'group' | 'member';
+		targetId?: string;
+		field?: string;
+		oldValue?: string | number | boolean;
+		newValue?: string | number | boolean;
 	}
 
 	// ---- 常數與共用工具 ----
@@ -89,6 +107,10 @@
 	// 產生 10 人的預設成員列表（坦/奶/輸出各一，其他為輸出）
 	function buildDefaultMembers(): GroupMember[] {
 		return Array.from({ length: GROUP_SIZE }, (_, i) => ({
+			id:
+				(
+					globalThis as unknown as { crypto?: { randomUUID?: () => string } }
+				).crypto?.randomUUID?.() ?? `m-${Date.now()}-${i}`,
 			profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
 			isDriver: false,
 			isHelper: false,
@@ -98,9 +120,15 @@
 	}
 
 	// 建立一個空團隊，並可選擇帶入初始變更紀錄
-	function createEmptyGroup(id: string, changeLogEntry?: ChangeLog): LocalGroup {
+	function createEmptyGroup(id?: string, changeLogEntry?: ChangeLog): LocalGroup {
+		const gid =
+			id ||
+			((
+				globalThis as unknown as { crypto?: { randomUUID?: () => string } }
+			).crypto?.randomUUID?.() ??
+				`g-${Date.now()}`);
 		return {
-			id,
+			id: gid,
 			members: buildDefaultMembers(),
 			status: '招募中',
 			departureDate: '',
@@ -111,7 +139,8 @@
 
 	interface PendingUpdate {
 		groupId: string;
-		index?: number;
+		index?: number; // 保留以支援顯示位置，但關鍵使用 memberId
+		memberId?: string;
 		field: string;
 		oldValue: string | boolean | number;
 		newValue: string | boolean | number;
@@ -137,9 +166,16 @@
 	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
 
-	const initialGroup = createEmptyGroup('1');
+	const initialGroup = createEmptyGroup();
 	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
 	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
+
+	// 同步排程/防回圈旗標
+	const SYNC_DEBOUNCE_MS = 700;
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const syncGroupTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
+	let globalSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+	let localWriteInProgress = false;
 
 	// Liveblocks 儲存層初始化與同步
 	let storageInitialized = false;
@@ -149,15 +185,107 @@
 
 	// Push local state into Liveblocks storage once initialized
 	// 儲存初始化後，將本地資料寫回 Liveblocks
-	function syncLocalGroupsToStorage() {
+	// schedule a full sync (debounced)
+	function scheduleFullSync() {
+		if (!storageInitialized || !storageRoot) return;
+		if (globalSyncTimeout) clearTimeout(globalSyncTimeout as unknown as number);
+		globalSyncTimeout = setTimeout(() => {
+			performFullSync();
+		}, SYNC_DEBOUNCE_MS);
+	}
+
+	function performFullSync() {
 		if (!storageInitialized || !storageRoot) return;
 		try {
+			localWriteInProgress = true;
 			const liveGroups = new LiveList<LiveObject<LiveGroup>>(
 				groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
 			);
 			storageRoot!.set('groups', liveGroups);
+			setTimeout(() => (localWriteInProgress = false), SYNC_DEBOUNCE_MS + 200);
 		} catch (e) {
-			console.error('syncLocalGroupsToStorage error', e);
+			console.error('performFullSync error', e);
+			localWriteInProgress = false;
+		}
+	}
+
+	// schedule single-group sync (debounced); replace only target group on storage
+	function scheduleSyncGroup(groupId: string) {
+		if (!storageInitialized || !storageRoot) return;
+		if (syncGroupTimeouts.has(groupId)) clearTimeout(syncGroupTimeouts.get(groupId)!);
+		syncGroupTimeouts.set(
+			groupId,
+			setTimeout(() => {
+				syncSingleGroupToStorage(groupId);
+				syncGroupTimeouts.delete(groupId);
+			}, SYNC_DEBOUNCE_MS)
+		);
+	}
+
+	function syncSingleGroupToStorage(groupId: string) {
+		if (!storageInitialized || !storageRoot) return;
+		try {
+			localWriteInProgress = true;
+			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+			const remoteGroups = (immutable.groups || []) as unknown[];
+			const newLiveGroups = new LiveList<LiveObject<LiveGroup>>(
+				remoteGroups.map((rg) => {
+					const rr = rg as Record<string, unknown>;
+					if (String(rr.id ?? '') === groupId) {
+						const localGroup = groups.find((g) => g.id === groupId)!;
+						return toLiveGroup(localGroup) as unknown as LiveObject<LiveGroup>;
+					}
+					// keep remote group as-is by reconstructing same shape
+					return new LiveObject<LiveGroup>({
+						id: String(rr.id ?? ''),
+						order: Number(rr.order ?? 0),
+						members: new LiveList<LiveObject<LiveGroupMember>>(
+							(((rr.members ?? []) as unknown[]) || []).map((m: unknown) => {
+								const mm = m as Record<string, unknown>;
+								return new LiveObject<LiveGroupMember>({
+									id: String(mm.id ?? ''),
+									order: typeof mm.order === 'number' ? Number(mm.order) : 0,
+									profession: String(mm.profession ?? ''),
+									isDriver: !!mm.isDriver,
+									isHelper: !!mm.isHelper,
+									playerId: String(mm.playerId ?? ''),
+									gearScore: (mm.gearScore as string | number | undefined) ?? ''
+								});
+							})
+						),
+						departureDate: String(rr.departureDate ?? ''),
+						departureTime: String(rr.departureTime ?? ''),
+						status: String(rr.status ?? '招募中'),
+						dungeonName: String(rr.dungeonName ?? ''),
+						level: String(rr.level ?? ''),
+						gearScoreReq: String(rr.gearScoreReq ?? ''),
+						contentType: String(rr.contentType ?? ''),
+						changeLog: new LiveList<LiveObject<LiveChangeLog>>(
+							(((rr.changeLog ?? []) as unknown[]) || []).map((c: unknown) => {
+								const cc = c as Record<string, unknown>;
+								return new LiveObject<LiveChangeLog>({
+									id: String(cc.id ?? ''),
+									timestamp: new Date(String(cc.timestamp)).toISOString(),
+									gameId: String(cc.gameId ?? ''),
+									actorId: String(cc.actorId ?? cc.gameId ?? ''),
+									action: String(cc.action ?? ''),
+									details: String(cc.details ?? ''),
+									targetType: (cc.targetType as 'group' | 'member') ?? undefined,
+									targetId: String(cc.targetId ?? ''),
+									field: String(cc.field ?? ''),
+									oldValue: cc.oldValue as string | number | boolean | undefined,
+									newValue: cc.newValue as string | number | boolean | undefined
+								});
+							})
+						)
+					});
+				})
+			);
+			storageRoot.set('groups', newLiveGroups);
+			setTimeout(() => (localWriteInProgress = false), SYNC_DEBOUNCE_MS + 200);
+		} catch (e) {
+			console.error('syncSingleGroupToStorage error', e);
+			localWriteInProgress = false;
 		}
 	}
 
@@ -239,6 +367,7 @@
 			// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
 			const unsubscribeStorage = room.subscribe(storageRoot!, () => {
 				try {
+					if (localWriteInProgress) return; // 忽略來自本地寫入觸發的事件
 					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
 					const groupsPlain = immutable.groups;
 					if (groupsPlain) {
@@ -247,7 +376,7 @@
 							groups = parsed;
 						}
 						if (!groups.find((g) => g.id === activeGroupId)) {
-							activeGroupId = groups[0]?.id || '1';
+							activeGroupId = groups[0]?.id || initialGroup.id;
 						}
 					}
 				} catch (e) {
@@ -284,9 +413,14 @@
 		let details = '';
 
 		if (pending.index !== undefined) {
-			// 成員詳細記錄
+			// 成員詳細記錄 — 使用 memberId 以避免 index 不穩
+			let memberIndex = pending.index;
+			if (pending.memberId) {
+				memberIndex = group.members.findIndex((m) => m.id === pending.memberId);
+			}
+			const displayIndex = (memberIndex ?? 0) >= 0 ? (memberIndex ?? 0) + 1 : '?';
 			// 新格式：顯示舊值與新值
-			details = `成員 ${pending.index + 1} 的「${fieldLabel}」(${String(
+			details = `成員 ${displayIndex} 的「${fieldLabel}」(${String(
 				pending.oldValue
 			)}) 更新為 (${String(pending.newValue)})`;
 		} else {
@@ -335,7 +469,7 @@
 			);
 			if (!remoteGroup) {
 				// 若遠端不存在該團隊，直接同步整個本地清單
-				syncLocalGroupsToStorage();
+				scheduleFullSync();
 				return;
 			}
 
@@ -371,6 +505,8 @@
 								(localGroup.members || []).map(
 									(m) =>
 										new LiveObject<LiveGroupMember>({
+											order: typeof m.order === 'number' ? m.order : 0,
+											id: m.id,
 											profession: m.profession,
 											isDriver: !!m.isDriver,
 											isHelper: !!m.isHelper,
@@ -393,8 +529,14 @@
 											id: c.id,
 											timestamp: new Date(c.timestamp).toISOString(),
 											gameId: c.gameId,
+											actorId: c.actorId ?? c.gameId,
 											action: c.action,
-											details: c.details
+											details: c.details,
+											targetType: c.targetType ?? undefined,
+											targetId: c.targetId ?? undefined,
+											field: c.field ?? undefined,
+											oldValue: c.oldValue ?? undefined,
+											newValue: c.newValue ?? undefined
 										})
 								)
 							)
@@ -407,6 +549,7 @@
 							(((rr.members ?? []) as unknown[]) || []).map((m: unknown) => {
 								const mm = m as Record<string, unknown>;
 								return new LiveObject<LiveGroupMember>({
+									id: String(mm.id ?? ''),
 									profession: String(mm.profession ?? ''),
 									isDriver: !!mm.isDriver,
 									isHelper: !!mm.isHelper,
@@ -429,8 +572,14 @@
 									id: String(cc.id ?? ''),
 									timestamp: new Date(String(cc.timestamp)).toISOString(),
 									gameId: String(cc.gameId ?? ''),
+									actorId: String(cc.actorId ?? cc.gameId ?? ''),
 									action: String(cc.action ?? ''),
-									details: String(cc.details ?? '')
+									details: String(cc.details ?? ''),
+									targetType: (cc.targetType as 'group' | 'member') ?? undefined,
+									targetId: String(cc.targetId ?? ''),
+									field: String(cc.field ?? ''),
+									oldValue: cc.oldValue as string | number | boolean | undefined,
+									newValue: cc.newValue as string | number | boolean | undefined
 								});
 							})
 						)
@@ -441,7 +590,7 @@
 		} catch (e) {
 			console.error('mergeAndSyncGroupChangeLog error', e);
 			// fallback to full sync
-			syncLocalGroupsToStorage();
+			scheduleFullSync();
 		}
 	}
 
@@ -496,7 +645,7 @@
 
 		gameId = '';
 		uid = '';
-		groups = [createEmptyGroup('1')];
+		groups = [createEmptyGroup()];
 		activeGroupId = groups[0].id;
 		pendingUpdates.clear();
 	}
@@ -516,9 +665,11 @@
 			setTimeout(() => (status = ''), 3000);
 			return;
 		}
-		// 找出最大的 ID 號碼，然後 +1
-		const maxId = groups.reduce((max, g) => Math.max(max, parseInt(g.id) || 0), 0);
-		const newId = (maxId + 1).toString();
+		// 使用 UUID 當作群組 ID（避免多人情境下重排造成衝突）
+		const newId =
+			(
+				globalThis as unknown as { crypto?: { randomUUID?: () => string } }
+			).crypto?.randomUUID?.() ?? `g-${Date.now()}`;
 		const creationLog: ChangeLog = {
 			id: crypto.randomUUID(),
 			timestamp: new Date(),
@@ -528,9 +679,8 @@
 		};
 		const newGroup = createEmptyGroup(newId, creationLog);
 		groups = [...groups, newGroup];
-		renumberGroups();
-		// 同步到儲存層（renumberGroups 內也會同步，但保持明確性）
-		syncLocalGroupsToStorage();
+		// 新增時以全量 sync，保證順序與顯示一致
+		scheduleFullSync();
 	}
 
 	// 管理員刪除團隊，會先記錄刪除事件
@@ -559,30 +709,13 @@
 			];
 		}
 		groups = groups.filter((g) => g.id !== groupId);
-		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || '1';
-		renumberGroups();
-
-		// 同步到儲存層
-		syncLocalGroupsToStorage();
+		if (activeGroupId === groupId) activeGroupId = groups[0]?.id || initialGroup.id;
+		// 刪除時也執行全量 sync
+		scheduleFullSync();
 	}
 
 	// 重新編號所有團隊，從 1 開始並保留活躍索引
-	function renumberGroups() {
-		const currentActiveIndex = groups.findIndex((g) => g.id === activeGroupId);
-		groups = groups.map((group, index) => ({
-			...group,
-			id: (index + 1).toString()
-		}));
-		// 保持當前活躍的團隊位置
-		if (currentActiveIndex >= 0 && currentActiveIndex < groups.length) {
-			activeGroupId = groups[currentActiveIndex].id;
-		} else {
-			activeGroupId = groups[0]?.id || '1';
-		}
-
-		// 同步到儲存層（確保 ID 連號變更被覆蓋）
-		syncLocalGroupsToStorage();
-	}
+	// renumberGroups 已移除 — 使用 UUID 作為永久 id，UI 顯示使用陣列序號
 
 	// 成員/團隊欄位共用的更新入口，會啟用延遲寫入的 pending 更新
 	function updateGroupField(
@@ -622,7 +755,8 @@
 				}
 			}
 
-			syncLocalGroupsToStorage();
+			// 使用單 group 排程同步，避免每次輸入都寫入整個 storage
+			scheduleSyncGroup(groupId);
 			return;
 		}
 
@@ -635,19 +769,21 @@
 		);
 
 		if (oldMember) {
-			const key = `${groupId}-${index}-${field}`;
+			const memberId = oldMember.id;
+			const key = `${groupId}-${memberId}-${field}`;
 
 			// 清除舊的計時器
 			if (pendingUpdates.has(key)) {
 				clearTimeout(pendingUpdates.get(key)!.timeout);
 			}
 
-			// 記錄未声紱的變動
+			// 記錄未提交的變動（使用 memberId 作為關鍵）
 			const pending: PendingUpdate = {
 				groupId,
 				index,
+				memberId,
 				field: field as string,
-				oldValue: oldMember[field as keyof GroupMember],
+				oldValue: (oldMember[field as keyof GroupMember] ?? '') as string | number | boolean,
 				newValue: value,
 				timeout: setTimeout(() => commitPendingUpdate(key), PENDING_UPDATE_DELAY)
 			};
@@ -655,12 +791,17 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到儲存層（成員層級欄位變更）
-		syncLocalGroupsToStorage();
+		// 使用單群組同步，避免覆寫其他使用者的變更
+		scheduleSyncGroup(groupId);
 	}
 
 	function getActiveGroup() {
 		return groups.find((g) => g.id === activeGroupId) || groups[0];
+	}
+
+	function isGroupReadOnly(g: LocalGroup | undefined) {
+		if (!g) return false;
+		return g.status === '已準備' || g.status === '已出團';
 	}
 
 	function updateGroupDate(groupId: string, value: string) {
@@ -685,8 +826,8 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到儲存層（發車日期變更）
-		syncLocalGroupsToStorage();
+		// 同步到儲存層（發車日期變更） - 單群組排程
+		scheduleSyncGroup(groupId);
 	}
 
 	function updateGroupTime(groupId: string, value: string) {
@@ -711,8 +852,8 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到儲存層（發車時間變更）
-		syncLocalGroupsToStorage();
+		// 同步到儲存層（發車時間變更） - 單群組排程
+		scheduleSyncGroup(groupId);
 	}
 
 	function updateGroupStatus(groupId: string, value: string) {
@@ -733,99 +874,26 @@
 			pendingUpdates.set(key, pending);
 		}
 
-		// 同步到儲存層（狀態變更）
-		syncLocalGroupsToStorage();
+		// 同步到儲存層（狀態變更） - 單群組排程
+		scheduleSyncGroup(groupId);
 	}
 
-	// 使用 Zeller 演算法由 YYYY-MM-DD 推算星期
+	// 用瀏覽器原生 Date 解析 YYYY-MM-DD，簡化可讀性
 	function getGroupWeekday(g: LocalGroup) {
 		const d = (g.departureDate || '').trim();
 		if (!d) return '';
-
-		// 支援 YYYY-MM-DD 格式
-		const match = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-		if (!match) return '';
-
-		const year = Number(match[1]);
-		const month = Number(match[2]);
-		const day = Number(match[3]);
-
-		if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return '';
-		if (month < 1 || month > 12) return '';
-		const daysInMonth = [
-			31,
-			year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-			31,
-			30,
-			31,
-			30,
-			31,
-			31,
-			30,
-			31,
-			30,
-			31
-		];
-		if (day < 1 || day > daysInMonth[month - 1]) return '';
-		let Y = year;
-		let mZ = month;
-		let q = day;
-		if (mZ <= 2) {
-			mZ += 12;
-			Y -= 1;
-		}
-		const K = Y % 100;
-		const J = Math.floor(Y / 100);
-		const h =
-			(q + Math.floor((13 * (mZ + 1)) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) + 5 * J) % 7;
-		const dayIndex = (h + 6) % 7;
+		const dt = new Date(d);
+		if (Number.isNaN(dt.getTime())) return '';
 		const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-		return weekdays[dayIndex];
+		return weekdays[dt.getDay()];
 	}
 
-	// 回傳星期索引（0 = 星期日, 6 = 星期六），找不到則回 -1
 	function getGroupWeekdayIndex(g: LocalGroup) {
 		const d = (g.departureDate || '').trim();
 		if (!d) return -1;
-
-		const match = d.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-		if (!match) return -1;
-
-		const year = Number(match[1]);
-		const month = Number(match[2]);
-		const day = Number(match[3]);
-
-		if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) return -1;
-		if (month < 1 || month > 12) return -1;
-		const daysInMonth = [
-			31,
-			year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28,
-			31,
-			30,
-			31,
-			30,
-			31,
-			31,
-			30,
-			31,
-			30,
-			31
-		];
-		if (day < 1 || day > daysInMonth[month - 1]) return -1;
-
-		let Y = year;
-		let mZ = month;
-		let q = day;
-		if (mZ <= 2) {
-			mZ += 12;
-			Y -= 1;
-		}
-		const K = Y % 100;
-		const J = Math.floor(Y / 100);
-		const h =
-			(q + Math.floor((13 * (mZ + 1)) / 5) + K + Math.floor(K / 4) + Math.floor(J / 4) + 5 * J) % 7;
-		const dayIndex = (h + 6) % 7; // 0 = Sunday
-		return dayIndex;
+		const dt = new Date(d);
+		if (Number.isNaN(dt.getTime())) return -1;
+		return dt.getDay();
 	}
 </script>
 
@@ -939,7 +1007,7 @@
 			<div class="tabs-wrapper">
 				<div class="tabs-header">
 					<div class="tabs">
-						{#each groups as group (group.id)}
+						{#each groups as group, idx (group.id)}
 							<button
 								class="tab"
 								class:active={activeGroupId === group.id}
@@ -948,27 +1016,29 @@
 								class:done={group.status === '已出團'}
 								onclick={() => (activeGroupId = group.id)}
 							>
-								團隊 {group.id}
+								團隊 {idx + 1}
 								{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
-									<span
-										class="tab-close"
-										onclick={(e) => {
-											e.stopPropagation();
-											deleteGroup(group.id);
-										}}
-										onkeydown={(e) => {
-											if (e.key === 'Enter' || e.key === ' ') {
-												e.preventDefault();
+									{#if group.status !== '已準備'}
+										<span
+											class="tab-close"
+											onclick={(e) => {
 												e.stopPropagation();
 												deleteGroup(group.id);
-											}
-										}}
-										role="button"
-										tabindex="0"
-										title="刪除此團隊"
-									>
-										×
-									</span>
+											}}
+											onkeydown={(e) => {
+												if (e.key === 'Enter' || e.key === ' ') {
+													e.preventDefault();
+													e.stopPropagation();
+													deleteGroup(group.id);
+												}
+											}}
+											role="button"
+											tabindex="0"
+											title="刪除此團隊"
+										>
+											×
+										</span>
+									{/if}
 								{/if}
 							</button>
 						{/each}
@@ -979,232 +1049,250 @@
 				</div>
 				{#if activeTab === 'forms'}
 					{#if getActiveGroup()}
-						<div class="departure-time-row">
-							<label class="departure-label">
-								<input
-									class="departure-input departure-date"
-									type="date"
-									aria-label="發車日期"
-									value={getActiveGroup().departureDate ?? ''}
-									onchange={(e) =>
-										updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input departure-time"
-									type="time"
-									aria-label="發車時間"
-									value={getActiveGroup().departureTime ?? ''}
-									onchange={(e) =>
-										updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
-								/>
-							</label>
-							<div class="departure-weekday">
-								{#if getGroupWeekday(getActiveGroup())}
-									<span
-										class="weekday"
-										class:weekend={getGroupWeekdayIndex(getActiveGroup()) === 0 ||
-											getGroupWeekdayIndex(getActiveGroup()) === 6}
-										class:sun={getGroupWeekdayIndex(getActiveGroup()) === 0}
-										class:sat={getGroupWeekdayIndex(getActiveGroup()) === 6}
-									>
-										{getGroupWeekday(getActiveGroup())}
-									</span>
-								{/if}
-							</div>
-							<label class="departure-label">
-								<input
-									class="departure-input dungeon-name"
-									type="text"
-									aria-label="副本名稱"
-									placeholder="副本名稱"
-									value={getActiveGroup().dungeonName ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'dungeonName',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input level"
-									type="text"
-									aria-label="等級"
-									placeholder="等級"
-									value={getActiveGroup().level ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'level',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<input
-									class="departure-input gear-score-req"
-									type="text"
-									aria-label="裝分限制"
-									placeholder="裝分限制"
-									value={getActiveGroup().gearScoreReq ?? ''}
-									oninput={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'gearScoreReq',
-											(e.target as HTMLInputElement).value
-										)}
-								/>
-							</label>
-							<label class="departure-label">
-								<select
-									class="departure-input content-type"
-									aria-label="內容類型"
-									value={getActiveGroup().contentType ?? ''}
-									onchange={(e) =>
-										updateGroupField(
-											activeGroupId,
-											undefined,
-											'contentType',
-											(e.target as HTMLSelectElement).value
-										)}
-								>
-									<option value="">請選擇</option>
-									<option value="俠境">俠境</option>
-									<option value="百業">百業</option>
-									<option value="百業+俠境">百業+俠境</option>
-								</select>
-							</label>
-							<label class="departure-label status-label" style="margin-left: auto;">
-								<select
-									class="departure-input status-select"
-									class:recruit={getActiveGroup().status === '招募中'}
-									class:ready={getActiveGroup().status === '已準備'}
-									class:done={getActiveGroup().status === '已出團'}
-									aria-label="團隊狀態"
-									value={getActiveGroup().status ?? '招募中'}
-									onchange={(e) =>
-										updateGroupStatus(activeGroupId, (e.target as HTMLSelectElement).value)}
-								>
-									<option value="招募中">招募中</option>
-									<option value="已準備">已準備</option>
-									<option value="已出團">已出團</option>
-								</select>
-							</label>
-						</div>
-						<div class="group-grid">
-							{#each getActiveGroup().members as member, index (index)}
-								<div class="member-card">
-									<div class="member-header">
-										<span class="member-number">{index + 1}</span>
-										<div class="role-badges">
-											<label class="badge-checkbox" class:active={member.isDriver}>
-												<input
-													type="checkbox"
-													checked={member.isDriver}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'isDriver',
-															(e.target as HTMLInputElement).checked
-														)}
-												/>
-												<span>🚩 隊長</span>
-											</label>
-											<label class="badge-checkbox" class:active={member.isHelper}>
-												<input
-													type="checkbox"
-													checked={member.isHelper}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'isHelper',
-															(e.target as HTMLInputElement).checked
-														)}
-												/>
-												<span>🤝 幫打</span>
-											</label>
-										</div>
-									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">職能</span>
-												<select
-													value={member.profession}
-													onchange={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'profession',
-															(e.target as HTMLSelectElement).value
-														)}
-												>
-													<option value="">請選擇</option>
-													<option value="坦克">坦克</option>
-													<option value="治療">治療</option>
-													<option value="輸出">輸出</option>
-												</select>
-											</label>
-										</div>
-									</div>
-									<div class="form-row">
-										<!-- 武器欄位已移除 -->
-									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">玩家 ID</span>
-												<input
-													type="text"
-													placeholder="遊戲 ID"
-													value={member.playerId}
-													oninput={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'playerId',
-															(e.target as HTMLInputElement).value
-														)}
-												/>
-											</label>
-										</div>
-									</div>
-									<div class="form-row">
-										<div class="form-group">
-											<label>
-												<span class="label-text">裝分</span>
-												<input
-													type="number"
-													min="0"
-													placeholder="0"
-													value={member.gearScore}
-													oninput={(e) =>
-														updateGroupField(
-															activeGroupId,
-															index,
-															'gearScore',
-															(e.target as HTMLInputElement).value
-														)}
-												/>
-											</label>
-										</div>
-									</div>
+						<div class="form-panel">
+							{#if isGroupReadOnly(getActiveGroup())}
+								<div class="readonly-overlay" aria-hidden="true"></div>
+							{/if}
+							<div class="departure-time-row">
+								<label class="departure-label">
+									<input
+										class="departure-input departure-date"
+										type="date"
+										aria-label="發車日期"
+										value={getActiveGroup().departureDate ?? ''}
+										onchange={(e) =>
+											updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									/>
+								</label>
+								<label class="departure-label">
+									<input
+										class="departure-input departure-time"
+										type="time"
+										aria-label="發車時間"
+										value={getActiveGroup().departureTime ?? ''}
+										onchange={(e) =>
+											updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									/>
+								</label>
+								<div class="departure-weekday">
+									{#if getGroupWeekday(getActiveGroup())}
+										<span
+											class="weekday"
+											class:weekend={getGroupWeekdayIndex(getActiveGroup()) === 0 ||
+												getGroupWeekdayIndex(getActiveGroup()) === 6}
+											class:sun={getGroupWeekdayIndex(getActiveGroup()) === 0}
+											class:sat={getGroupWeekdayIndex(getActiveGroup()) === 6}
+										>
+											{getGroupWeekday(getActiveGroup())}
+										</span>
+									{/if}
 								</div>
-							{/each}
+								<label class="departure-label">
+									<input
+										class="departure-input dungeon-name"
+										type="text"
+										aria-label="副本名稱"
+										placeholder="副本名稱"
+										value={getActiveGroup().dungeonName ?? ''}
+										oninput={(e) =>
+											updateGroupField(
+												activeGroupId,
+												undefined,
+												'dungeonName',
+												(e.target as HTMLInputElement).value
+											)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									/>
+								</label>
+								<label class="departure-label">
+									<input
+										class="departure-input level"
+										type="text"
+										aria-label="等級"
+										placeholder="等級"
+										value={getActiveGroup().level ?? ''}
+										oninput={(e) =>
+											updateGroupField(
+												activeGroupId,
+												undefined,
+												'level',
+												(e.target as HTMLInputElement).value
+											)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									/>
+								</label>
+								<label class="departure-label">
+									<input
+										class="departure-input gear-score-req"
+										type="text"
+										aria-label="裝分限制"
+										placeholder="裝分限制"
+										value={getActiveGroup().gearScoreReq ?? ''}
+										oninput={(e) =>
+											updateGroupField(
+												activeGroupId,
+												undefined,
+												'gearScoreReq',
+												(e.target as HTMLInputElement).value
+											)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									/>
+								</label>
+								<label class="departure-label">
+									<select
+										class="departure-input content-type"
+										aria-label="內容類型"
+										value={getActiveGroup().contentType ?? ''}
+										onchange={(e) =>
+											updateGroupField(
+												activeGroupId,
+												undefined,
+												'contentType',
+												(e.target as HTMLSelectElement).value
+											)}
+										disabled={isGroupReadOnly(getActiveGroup())}
+									>
+										<option value="">請選擇</option>
+										<option value="俠境">俠境</option>
+										<option value="百業">百業</option>
+										<option value="百業+俠境">百業+俠境</option>
+									</select>
+								</label>
+								<label class="departure-label status-label" style="margin-left: auto;">
+									<select
+										class="departure-input status-select"
+										class:recruit={getActiveGroup().status === '招募中'}
+										class:ready={getActiveGroup().status === '已準備'}
+										class:done={getActiveGroup().status === '已出團'}
+										aria-label="團隊狀態"
+										value={getActiveGroup().status ?? '招募中'}
+										onchange={(e) =>
+											updateGroupStatus(activeGroupId, (e.target as HTMLSelectElement).value)}
+										class:readonly-active={isGroupReadOnly(getActiveGroup())}
+									>
+										<option value="招募中">招募中</option>
+										<option value="已準備">已準備</option>
+										<option value="已出團">已出團</option>
+									</select>
+								</label>
+							</div>
+							<!-- keep group-grid inside form-panel so overlay covers members -->
+							<div class="group-grid">
+								{#each getActiveGroup().members as member, index (index)}
+									<div class="member-card">
+										<div class="member-header">
+											<span class="member-number">{index + 1}</span>
+											<div class="role-badges">
+												<label class="badge-checkbox" class:active={member.isDriver}>
+													<input
+														type="checkbox"
+														checked={member.isDriver}
+														onchange={(e) =>
+															updateGroupField(
+																activeGroupId,
+																index,
+																'isDriver',
+																(e.target as HTMLInputElement).checked
+															)}
+														disabled={isGroupReadOnly(getActiveGroup())}
+													/>
+													<span>🚩 隊長</span>
+												</label>
+												<label class="badge-checkbox" class:active={member.isHelper}>
+													<input
+														type="checkbox"
+														checked={member.isHelper}
+														onchange={(e) =>
+															updateGroupField(
+																activeGroupId,
+																index,
+																'isHelper',
+																(e.target as HTMLInputElement).checked
+															)}
+														disabled={isGroupReadOnly(getActiveGroup())}
+													/>
+													<span>🤝 幫打</span>
+												</label>
+											</div>
+										</div>
+										<div class="form-row">
+											<div class="form-group">
+												<label>
+													<span class="label-text">職能</span>
+													<select
+														value={member.profession}
+														onchange={(e) =>
+															updateGroupField(
+																activeGroupId,
+																index,
+																'profession',
+																(e.target as HTMLSelectElement).value
+															)}
+														disabled={isGroupReadOnly(getActiveGroup())}
+													>
+														<option value="">請選擇</option>
+														<option value="坦克">坦克</option>
+														<option value="治療">治療</option>
+														<option value="輸出">輸出</option>
+													</select>
+												</label>
+											</div>
+										</div>
+										<div class="form-row">
+											<!-- 武器欄位已移除 -->
+										</div>
+										<div class="form-row">
+											<div class="form-group">
+												<label>
+													<span class="label-text">玩家 ID</span>
+													<input
+														type="text"
+														placeholder="遊戲 ID"
+														value={member.playerId}
+														oninput={(e) =>
+															updateGroupField(
+																activeGroupId,
+																index,
+																'playerId',
+																(e.target as HTMLInputElement).value
+															)}
+														disabled={isGroupReadOnly(getActiveGroup())}
+													/>
+												</label>
+											</div>
+										</div>
+										<div class="form-row">
+											<div class="form-group">
+												<label>
+													<span class="label-text">裝分</span>
+													<input
+														type="number"
+														min="0"
+														placeholder="0"
+														value={member.gearScore}
+														oninput={(e) =>
+															updateGroupField(
+																activeGroupId,
+																index,
+																'gearScore',
+																(e.target as HTMLInputElement).value
+															)}
+														disabled={isGroupReadOnly(getActiveGroup())}
+													/>
+												</label>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
 						</div>
 					{/if}
 				{:else if activeTab === 'history' && isAdmin}
 					<section class="history-section">
 						<div class="history-header-wrapper">
-							<h2>📋 更改紀錄 - 團隊 {activeGroupId}</h2>
+							<h2>📋 更改紀錄 - 團隊 {groups.findIndex((g) => g.id === activeGroupId) + 1}</h2>
 							<div class="history-stats">
 								{#if (getActiveGroup()?.changeLog ?? []).length > 0}
 									<span class="stat-item"
@@ -1330,5 +1418,33 @@
 	.tab.active {
 		opacity: 1;
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+	}
+	/* Readonly overlay for form panel */
+	.form-panel {
+		position: relative;
+	}
+
+	.readonly-overlay {
+		position: absolute;
+		inset: 0;
+		background: rgba(255, 255, 255, 0.25); /* 白色半透明 (不模糊) */
+		z-index: 40;
+		pointer-events: auto; /* 阻擋下層互動 */
+	}
+
+	/* Status select should be interactive above the overlay and visually prominent */
+	.status-select.readonly-active {
+		position: relative;
+		z-index: 60; /* sit above overlay */
+		opacity: 1; /* make it fully opaque */
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+	}
+
+	/* Make disabled inputs look muted */
+	input[disabled],
+	select[disabled] {
+		background-color: #f7f7f7;
+		color: #555;
+		cursor: not-allowed;
 	}
 </style>

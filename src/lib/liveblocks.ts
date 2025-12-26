@@ -5,10 +5,13 @@ import type { LocalGroup } from '$lib/types';
 export function toLiveGroup(g: LocalGroup) {
 	return new LiveObject({
 		id: g.id,
+		order: typeof g.order === 'number' ? g.order : 0,
 		members: new LiveList(
 			(g.members || []).map(
 				(m) =>
 					new LiveObject({
+						order: typeof m.order === 'number' ? m.order : 0,
+						id: m.id,
 						profession: m.profession,
 						isDriver: !!m.isDriver,
 						isHelper: !!m.isHelper,
@@ -31,8 +34,14 @@ export function toLiveGroup(g: LocalGroup) {
 						id: c.id,
 						timestamp: new Date(c.timestamp).toISOString(),
 						gameId: c.gameId,
+						actorId: c.actorId ?? c.gameId,
 						action: c.action,
-						details: c.details
+						details: c.details,
+						targetType: c.targetType ?? undefined,
+						targetId: c.targetId ?? undefined,
+						field: c.field ?? undefined,
+						oldValue: c.oldValue ?? undefined,
+						newValue: c.newValue ?? undefined
 					})
 			)
 		)

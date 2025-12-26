@@ -1,5 +1,7 @@
 // 共用型別與從遠端（Liveblocks immutable）資料解析的 helpers
 export interface GroupMember {
+	id: string; // member 永久唯一識別（避免使用陣列 index）
+	order?: number; // 用於 UI 排序，可重排
 	profession: string;
 	isDriver: boolean;
 	isHelper: boolean;
@@ -10,13 +12,21 @@ export interface GroupMember {
 export interface ChangeLog {
 	id: string;
 	timestamp: Date;
-	gameId: string;
+	gameId: string; // actor
+	actorId?: string; // alias
 	action: string;
 	details: string;
+	// structured fields to point precisely to target
+	targetType?: 'group' | 'member';
+	targetId?: string;
+	field?: string;
+	oldValue?: string | number | boolean;
+	newValue?: string | number | boolean;
 }
 
 export interface LocalGroup {
 	id: string;
+	order?: number;
 	members: GroupMember[];
 	departureTime?: string;
 	departureDate?: string;
@@ -39,6 +49,13 @@ function safeString(v: unknown) {
 function parseMember(m: unknown): GroupMember {
 	const r = (isObject(m) ? m : {}) as Record<string, unknown>;
 	return {
+		id:
+			safeString(r.id) ||
+			((
+				globalThis as unknown as { crypto?: { randomUUID?: () => string } }
+			).crypto?.randomUUID?.() ??
+				`m-${Date.now()}-${Math.floor(Math.random() * 1e6)}`),
+		order: typeof r.order === 'number' ? (r.order as number) : undefined,
 		profession: safeString(r.profession) || '輸出',
 		isDriver: !!r.isDriver,
 		isHelper: !!r.isHelper,
@@ -55,9 +72,17 @@ function parseChangeLogEntry(c: unknown): ChangeLog | null {
 	return {
 		id,
 		timestamp: ts,
-		gameId: safeString(c.gameId),
-		action: safeString(c.action),
-		details: safeString(c.details)
+		gameId: safeString((c as Record<string, unknown>).gameId),
+		actorId:
+			safeString((c as Record<string, unknown>).actorId) ||
+			safeString((c as Record<string, unknown>).gameId),
+		action: safeString((c as Record<string, unknown>).action),
+		details: safeString((c as Record<string, unknown>).details),
+		targetType: (c as Record<string, unknown>).targetType as 'group' | 'member' | undefined,
+		targetId: safeString((c as Record<string, unknown>).targetId),
+		field: safeString((c as Record<string, unknown>).field),
+		oldValue: (c as Record<string, unknown>).oldValue as string | number | boolean | undefined,
+		newValue: (c as Record<string, unknown>).newValue as string | number | boolean | undefined
 	};
 }
 
@@ -74,6 +99,7 @@ export function parseRemoteGroup(raw: unknown): LocalGroup | null {
 	}
 	return {
 		id: safeString(r.id) || '',
+		order: typeof r.order === 'number' ? (r.order as number) : undefined,
 		members,
 		status: safeString(r.status) || '招募中',
 		departureDate: safeString(r.departureDate),
