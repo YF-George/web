@@ -12,6 +12,7 @@ export function toLiveGroup(g: LocalGroup) {
 					new LiveObject({
 						order: typeof m.order === 'number' ? m.order : 0,
 						id: m.id,
+						pinned: !!m.pinned,
 						profession: m.profession,
 						isDriver: !!m.isDriver,
 						isHelper: !!m.isHelper,

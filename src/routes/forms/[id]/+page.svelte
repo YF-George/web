@@ -10,6 +10,7 @@
 	interface GroupMember {
 		id: string;
 		order?: number;
+		pinned?: boolean;
 		profession: string;
 		isDriver: boolean;
 		isHelper: boolean;
@@ -21,20 +22,20 @@
 		id: string;
 		order?: number;
 		members: GroupMember[];
-		departureTime?: string; // 格式: HH:mm (24 小時)
-		departureDate?: string; // 格式: YYYY-MM-DD
-		status?: string; // '招募中' | '已準備' | '已出團'
-		dungeonName?: string; // 副本名稱
-		level?: string; // 等級
-		gearScoreReq?: string; // 裝分限制
-		contentType?: string; // 內容類型：俠境/百業/百業+俠境
-		changeLog?: ChangeLog[]; // 該團隊的變動紀錄
+		departureTime?: string;
+		departureDate?: string;
+		status?: string;
+		dungeonName?: string;
+		level?: string;
+		gearScoreReq?: string;
+		contentType?: string;
+		changeLog?: ChangeLog[];
 	}
 
-	// Liveblocks 儲存層型別（符合 Lson 規範）
 	type LiveGroupMember = {
 		id: string;
 		order?: number;
+		pinned?: boolean;
 		profession: string;
 		isDriver: boolean;
 		isHelper: boolean;
@@ -116,6 +117,7 @@
 			profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
 			isDriver: false,
 			isHelper: false,
+			pinned: false,
 			playerId: '',
 			gearScore: ''
 		}));
@@ -168,6 +170,9 @@
 	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
 
+	// 自製刪除確認對話框 state
+	let pendingDeleteGroupId: string | null = null;
+
 	const initialGroup = createEmptyGroup();
 	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
 	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
@@ -182,6 +187,76 @@
 	// Liveblocks 儲存層初始化與同步
 	let storageInitialized = false;
 	let storageRoot: LiveObject<LiveRoot> | null = null;
+
+	// 週期性自動刷新（每週日 20:00）
+	let weeklyRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
+	let weeklyRefreshInterval: ReturnType<typeof setInterval> | null = null;
+
+	function computeNextSunday20() {
+		const now = new Date();
+		const year = now.getFullYear();
+		const month = now.getMonth();
+		const date = now.getDate();
+		const day = now.getDay();
+		const daysUntilSunday = (7 - day) % 7;
+		// candidate for this week's Sunday at 20:00
+		const candidate = new Date(year, month, date + daysUntilSunday, 20, 0, 0, 0);
+		if (candidate.getTime() > now.getTime()) {
+			return candidate.getTime() - now.getTime();
+		}
+		// otherwise next week's Sunday
+		const next = new Date(
+			year,
+			month,
+			date + (daysUntilSunday === 0 ? 7 : daysUntilSunday),
+			20,
+			0,
+			0,
+			0
+		);
+		return next.getTime() - now.getTime();
+	}
+
+	async function performWeeklyRefresh() {
+		if (!storageInitialized || !storageRoot) {
+			status = '無法自動刷新：儲存尚未就緒';
+			setTimeout(() => (status = ''), 4000);
+			return;
+		}
+
+		try {
+			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+			const groupsPlain = immutable.groups;
+			if (!groupsPlain) return;
+			const parsed = parseRemoteGroups(groupsPlain as unknown);
+			// 若遠端團隊數量與本地不同，為避免破壞使用者畫面不自動覆寫
+			if (parsed.length !== groups.length) {
+				status = '遠端團隊數量已變動，未自動刷新';
+				setTimeout(() => (status = ''), 6000);
+				return;
+			}
+			// 合併遠端，但保留本地被鎖定的成員
+			groups = mergeRemoteWithLocal(parsed);
+			status = '表單已於週日 20:00 自動刷新（保留已鎖定成員）';
+			setTimeout(() => (status = ''), 4000);
+		} catch (e) {
+			console.error('performWeeklyRefresh error', e);
+			status = '自動刷新失敗，請稍後手動刷新';
+			setTimeout(() => (status = ''), 4000);
+		}
+	}
+
+	function scheduleWeeklyRefresh() {
+		// clear existing
+		if (weeklyRefreshTimeout) clearTimeout(weeklyRefreshTimeout);
+		if (weeklyRefreshInterval) clearInterval(weeklyRefreshInterval);
+		const delay = computeNextSunday20();
+		weeklyRefreshTimeout = setTimeout(() => {
+			performWeeklyRefresh();
+			// afterwards set interval every 7 days
+			weeklyRefreshInterval = setInterval(performWeeklyRefresh, 7 * 24 * 60 * 60 * 1000);
+		}, delay);
+	}
 
 	// `toLiveGroup` 已移至 `src/lib/liveblocks.ts`，在此匯入使用
 
@@ -247,6 +322,7 @@
 								return new LiveObject<LiveGroupMember>({
 									id: String(mm.id ?? ''),
 									order: typeof mm.order === 'number' ? Number(mm.order) : 0,
+									pinned: !!mm.pinned,
 									profession: String(mm.profession ?? ''),
 									isDriver: !!mm.isDriver,
 									isHelper: !!mm.isHelper,
@@ -301,7 +377,7 @@
 				// 使用 parseRemoteGroups 將 unknown 資料轉為 LocalGroup[]
 				const parsed = parseRemoteGroups(groupsPlain as unknown);
 				if (parsed.length > 0) {
-					groups = parsed;
+					groups = mergeRemoteWithLocal(parsed);
 				}
 				if (!groups.find((g) => g.id === activeGroupId)) {
 					activeGroupId = groups[0]?.id || '1';
@@ -350,6 +426,9 @@
 			storageRoot = root as unknown as LiveObject<LiveRoot>;
 			storageInitialized = true;
 
+			// 當儲存就緒時啟動週期性自動刷新排程
+			scheduleWeeklyRefresh();
+
 			// 若尚未存在 groups，初始化一次
 			try {
 				const existing = storageRoot.get('groups');
@@ -375,7 +454,7 @@
 					if (groupsPlain) {
 						const parsed = parseRemoteGroups(groupsPlain as unknown);
 						if (parsed.length > 0) {
-							groups = parsed;
+							groups = mergeRemoteWithLocal(parsed);
 						}
 						if (!groups.find((g) => g.id === activeGroupId)) {
 							activeGroupId = groups[0]?.id || initialGroup.id;
@@ -391,6 +470,9 @@
 				unsubscribeStorage();
 				unsubPage();
 				if (leave) leave();
+				// clear weekly timers
+				if (weeklyRefreshTimeout) clearTimeout(weeklyRefreshTimeout);
+				if (weeklyRefreshInterval) clearInterval(weeklyRefreshInterval);
 			});
 		} catch (e) {
 			console.error('init storage error', e);
@@ -513,6 +595,7 @@
 										new LiveObject<LiveGroupMember>({
 											order: typeof m.order === 'number' ? m.order : 0,
 											id: m.id,
+											pinned: !!m.pinned,
 											profession: m.profession,
 											isDriver: !!m.isDriver,
 											isHelper: !!m.isHelper,
@@ -556,6 +639,7 @@
 								const mm = m as Record<string, unknown>;
 								return new LiveObject<LiveGroupMember>({
 									id: String(mm.id ?? ''),
+									pinned: !!mm.pinned,
 									profession: String(mm.profession ?? ''),
 									isDriver: !!mm.isDriver,
 									isHelper: !!mm.isHelper,
@@ -850,6 +934,36 @@
 		return groups.find((g) => g.id === activeGroupId) || groups[0];
 	}
 
+	// Merge remote parsed groups into local groups but preserve locally-pinned member fields.
+	function mergeRemoteWithLocal(remoteParsed: LocalGroup[]): LocalGroup[] {
+		const out: LocalGroup[] = [];
+		for (const rg of remoteParsed) {
+			const local = groups.find((g) => g.id === rg.id);
+			if (!local) {
+				out.push(rg);
+				continue;
+			}
+			const mergedMembers = (rg.members || []).map((m) => {
+				const lm = local.members.find((x) => x.id === m.id);
+				if (lm && lm.pinned) {
+					// preserve pinned member's local editable fields
+					return {
+						...m,
+						playerId: lm.playerId,
+						gearScore: lm.gearScore,
+						isDriver: lm.isDriver,
+						isHelper: lm.isHelper,
+						profession: lm.profession,
+						pinned: lm.pinned
+					} as typeof m;
+				}
+				return m;
+			});
+			out.push({ ...rg, members: mergedMembers });
+		}
+		return out;
+	}
+
 	function isGroupReadOnly(g: LocalGroup | undefined) {
 		if (!g) return false;
 		return g.status === '已準備' || g.status === '已出團';
@@ -1074,13 +1188,14 @@
 											class="tab-close"
 											onclick={(e) => {
 												e.stopPropagation();
-												deleteGroup(group.id);
+												// open custom confirmation dialog
+												pendingDeleteGroupId = group.id;
 											}}
 											onkeydown={(e) => {
 												if (e.key === 'Enter' || e.key === ' ') {
 													e.preventDefault();
 													e.stopPropagation();
-													deleteGroup(group.id);
+													pendingDeleteGroupId = group.id;
 												}
 											}}
 											role="button"
@@ -1101,6 +1216,25 @@
 				{#if activeTab === 'forms'}
 					{#if getActiveGroup()}
 						<div class="form-panel">
+							{#if pendingDeleteGroupId}
+								<div class="modal-backdrop" role="dialog" aria-modal="true">
+									<div class="modal">
+										<h3>確認刪除團隊</h3>
+										<p>確定要刪除此團隊嗎？此操作會移除該團隊的所有資料（可在變更紀錄查看）。</p>
+										<div class="modal-actions">
+											<button
+												class="btn btn-danger"
+												onclick={() => {
+													deleteGroup(pendingDeleteGroupId!);
+													pendingDeleteGroupId = null;
+												}}>確認刪除</button
+											>
+											<button class="btn" onclick={() => (pendingDeleteGroupId = null)}>取消</button
+											>
+										</div>
+									</div>
+								</div>
+							{/if}
 							{#if isGroupReadOnly(getActiveGroup())}
 								<div class="readonly-overlay" aria-hidden="true"></div>
 							{/if}
@@ -1206,10 +1340,26 @@
 							</div>
 							<!-- keep group-grid inside form-panel so overlay covers members -->
 							<div class="group-grid">
-								{#each getActiveGroup().members as member, index (index)}
+								{#each getActiveGroup().members as member, index (member.id)}
 									<div class="member-card">
 										<div class="member-header">
-											<span class="member-number">{index + 1}</span>
+											<button
+												type="button"
+												class="member-number"
+												class:pinned={member.pinned}
+												class:disabled={!isAdmin}
+												disabled={!isAdmin}
+												aria-pressed={!!member.pinned}
+												title={isAdmin
+													? member.pinned
+														? '已鎖定，刷新時會保留'
+														: '點選以鎖定此成員'
+													: '只有管理員可以鎖定成員'}
+												onclick={() =>
+													updateGroupField(activeGroupId, index, 'pinned', !member.pinned)}
+											>
+												{index + 1}
+											</button>
 											<div class="role-badges">
 												<label class="badge-checkbox" class:active={member.isDriver}>
 													<input
@@ -1468,5 +1618,93 @@
 		color: #dc2626;
 		font-size: 0.8rem;
 		margin-top: 0.25rem;
+	}
+
+	/* simple modal styles for custom confirmation */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(0, 0, 0, 0.45);
+		z-index: 1200;
+	}
+
+	.modal {
+		background: #fff;
+		padding: 1.25rem;
+		border-radius: 8px;
+		max-width: 420px;
+		width: 100%;
+		box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+	}
+
+	.modal h3 {
+		margin: 0 0 0.5rem 0;
+		font-size: 1.05rem;
+	}
+
+	.modal p {
+		margin: 0 0 1rem 0;
+		color: #333;
+	}
+
+	.modal-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
+	.btn {
+		padding: 0.5rem 0.9rem;
+		border-radius: 6px;
+		border: 1px solid #d1d5db;
+		background: #fff;
+		cursor: pointer;
+	}
+
+	.btn-danger {
+		background: #dc2626;
+		color: #fff;
+		border-color: #dc2626;
+	}
+
+	/* Member number (clickable) - default blue, pinned -> red */
+	.member-number {
+		display: inline-block;
+		width: 2rem;
+		height: 2rem;
+		line-height: 2rem;
+		border-radius: 9999px;
+		text-align: center;
+		background: #e6f0ff;
+		color: #2563eb;
+		cursor: pointer;
+		user-select: none;
+		margin-right: 0.5rem;
+		font-weight: 600;
+	}
+
+	.member-number:hover {
+		filter: brightness(0.98);
+	}
+
+	.member-number.pinned {
+		background: #fee2e2;
+		color: #b91c1c;
+		border: 1px solid #fca5a5;
+	}
+
+	.member-number.disabled {
+		background: #f3f4f6;
+		color: #9ca3af;
+		cursor: default;
+		border: 1px solid #e5e7eb;
+	}
+
+	.member-number:focus {
+		outline: 2px solid rgba(37, 99, 235, 0.35);
+		outline-offset: 2px;
 	}
 </style>
