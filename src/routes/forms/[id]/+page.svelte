@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { browser, dev } from '$app/environment';
+	import { browser } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
@@ -1193,11 +1193,11 @@
 				<div class="nav-actions">
 					<span class="nav-user" title={gameId || '訪客'}>{gameId || '訪客'}</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
-					{#if isAdmin || dev}
+					{#if isAdmin}
 						<button
 							class="nav-clear"
 							onclick={() => (pendingImmediateClear = true)}
-							title="測試用：立即執行週期性清空"
+							title="管理員：立即執行週期性清空"
 						>
 							立即清空
 						</button>
