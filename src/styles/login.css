@@ -1,9 +1,7 @@
 /*
-  login.css
-  中文註解：
-  - 功能：登入 / 驗證相關頁面的專屬樣式（卡片、表單、按鈕等）。
-  - 主要 selectors：`.login-container`（整頁背景與置中）、`.login-card`（白色卡片樣式）、`.login-input`、`.login-button`。
-  - 注意事項：卡片寬度使用 `clamp()` 實作響應，輸入與按鈕皆設為 `width:100%` 以符合行動裝置 UX。
+login.css
+功能：登入 / 驗證相關頁面的專屬樣式。
+主要 selectors：`.login-container`, `.login-card`, `.login-input`, `.login-button`。
 */
 
 .login-container {
