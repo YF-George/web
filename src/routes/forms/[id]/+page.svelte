@@ -218,30 +218,71 @@
 	}
 
 	async function performWeeklyRefresh() {
+		// behaviour: clear all form contents for every group while keeping the same
+		// number of groups and preserving any member with pinned === true
 		if (!storageInitialized || !storageRoot) {
-			status = '無法自動刷新：儲存尚未就緒';
+			status = '無法自動清空：儲存尚未就緒';
 			setTimeout(() => (status = ''), 4000);
 			return;
 		}
 
 		try {
-			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
-			const groupsPlain = immutable.groups;
-			if (!groupsPlain) return;
-			const parsed = parseRemoteGroups(groupsPlain as unknown);
-			// 若遠端團隊數量與本地不同，為避免破壞使用者畫面不自動覆寫
-			if (parsed.length !== groups.length) {
-				status = '遠端團隊數量已變動，未自動刷新';
-				setTimeout(() => (status = ''), 6000);
+			// build cleared groups locally: keep id/order/changeLog but clear fields
+			const cleared = groups.map((g) => {
+				const clearedMembers = (g.members || []).map((m) => {
+					if (m.pinned) return m; // preserve pinned member entirely
+					return {
+						...m,
+						profession: '',
+						isDriver: false,
+						isHelper: false,
+						playerId: '',
+						gearScore: ''
+					};
+				});
+
+				// append an automated changelog entry indicating weekly clear
+				const autoLog: ChangeLog = {
+					id: crypto.randomUUID(),
+					timestamp: new Date(),
+					gameId: 'system',
+					actorId: 'system',
+					action: '自動清空',
+					details: '週期性自動清空表單（保留已鎖定成員）',
+					targetType: 'group',
+					targetId: g.id
+				};
+
+				return {
+					...g,
+					members: clearedMembers,
+					departureDate: '',
+					departureTime: '',
+					dungeonName: '',
+					level: '',
+					gearScoreReq: '',
+					contentType: '',
+					status: '招募中',
+					changeLog: [autoLog, ...(g.changeLog || [])].slice(0, MAX_CHANGELOG_ENTRIES)
+				} as LocalGroup;
+			});
+
+			// ensure team count unchanged (we only worked on local groups)
+			if (cleared.length !== groups.length) {
+				status = '自動清空中發現團隊數異常，已中止';
+				setTimeout(() => (status = ''), 5000);
 				return;
 			}
-			// 合併遠端，但保留本地被鎖定的成員
-			groups = mergeRemoteWithLocal(parsed);
-			status = '表單已於週日 20:00 自動刷新（保留已鎖定成員）';
-			setTimeout(() => (status = ''), 4000);
+
+			groups = cleared;
+			// push cleared state to storage
+			scheduleFullSync();
+
+			status = '表單已於週日 20:00 自動清空（保留已鎖定成員）';
+			setTimeout(() => (status = ''), 6000);
 		} catch (e) {
 			console.error('performWeeklyRefresh error', e);
-			status = '自動刷新失敗，請稍後手動刷新';
+			status = '自動清空失敗，請稍後手動處理';
 			setTimeout(() => (status = ''), 4000);
 		}
 	}
