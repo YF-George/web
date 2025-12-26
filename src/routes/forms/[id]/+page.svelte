@@ -4,6 +4,7 @@
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
+	import { parseRemoteGroups } from '$lib/types';
 
 	interface GroupMember {
 		profession: string;
@@ -199,30 +200,11 @@
 			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
 			const groupsPlain = immutable.groups;
 			if (groupsPlain) {
-				groups = groupsPlain.map((lg) => ({
-					id: String(lg.id ?? ''),
-					members: (lg.members ?? []).map((m) => ({
-						profession: String(m.profession ?? ''),
-						isDriver: !!m.isDriver,
-						isHelper: !!m.isHelper,
-						playerId: String(m.playerId ?? ''),
-						gearScore: (m.gearScore as string | number | undefined) ?? ''
-					})),
-					status: String(lg.status ?? '招募中'),
-					departureDate: String(lg.departureDate ?? ''),
-					departureTime: String(lg.departureTime ?? ''),
-					dungeonName: String(lg.dungeonName ?? ''),
-					level: String(lg.level ?? ''),
-					gearScoreReq: String(lg.gearScoreReq ?? ''),
-					contentType: String(lg.contentType ?? ''),
-					changeLog: (lg.changeLog ?? []).map((c) => ({
-						id: String(c.id ?? ''),
-						timestamp: c.timestamp ? new Date(String(c.timestamp)) : new Date(),
-						gameId: String(c.gameId ?? ''),
-						action: String(c.action ?? ''),
-						details: String(c.details ?? '')
-					}))
-				}));
+				// 使用 parseRemoteGroups 將 unknown 資料轉為 LocalGroup[]
+				const parsed = parseRemoteGroups(groupsPlain as unknown);
+				if (parsed.length > 0) {
+					groups = parsed;
+				}
 				if (!groups.find((g) => g.id === activeGroupId)) {
 					activeGroupId = groups[0]?.id || '1';
 				}
@@ -290,30 +272,10 @@
 					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
 					const groupsPlain = immutable.groups;
 					if (groupsPlain) {
-						groups = groupsPlain.map((lg) => ({
-							id: String(lg.id ?? ''),
-							members: (lg.members ?? []).map((m) => ({
-								profession: String(m.profession ?? ''),
-								isDriver: !!m.isDriver,
-								isHelper: !!m.isHelper,
-								playerId: String(m.playerId ?? ''),
-								gearScore: (m.gearScore as string | number | undefined) ?? ''
-							})),
-							status: String(lg.status ?? '招募中'),
-							departureDate: String(lg.departureDate ?? ''),
-							departureTime: String(lg.departureTime ?? ''),
-							dungeonName: String(lg.dungeonName ?? ''),
-							level: String(lg.level ?? ''),
-							gearScoreReq: String(lg.gearScoreReq ?? ''),
-							contentType: String(lg.contentType ?? ''),
-							changeLog: (lg.changeLog ?? []).map((c) => ({
-								id: String(c.id ?? ''),
-								timestamp: c.timestamp ? new Date(String(c.timestamp)) : new Date(),
-								gameId: String(c.gameId ?? ''),
-								action: String(c.action ?? ''),
-								details: String(c.details ?? '')
-							}))
-						}));
+						const parsed = parseRemoteGroups(groupsPlain as unknown);
+						if (parsed.length > 0) {
+							groups = parsed;
+						}
 						if (!groups.find((g) => g.id === activeGroupId)) {
 							activeGroupId = groups[0]?.id || '1';
 						}
