@@ -2,6 +2,26 @@
 
 本專案為 SvelteKit v2（Svelte v5 runes）、Vite v7、Tailwind CSS v4、TypeScript strict。以下規範協助維持一致性與可維護性。
 
+## 快速上手（3 分鐘）
+
+若想快速在本地啟動並遵守專案規範，請依序執行：
+
+```powershell
+pnpm install
+pnpm run prepare   # 同步型別與 Husky hook
+pnpm run dev       # 啟動開發伺服器
+```
+
+常用檢查（在推送或開 PR 前執行）：
+
+```powershell
+pnpm run format    # 使用 Prettier 自動格式化
+pnpm run lint      # Prettier + ESLint 檢查
+pnpm run check     # svelte-check 型別檢查
+```
+
+若要快速驗證 CI 會通過，把上述三個檢查都跑過一次即可。
+
 ## 開發環境與基本流程
 
 - 套件管理：建議使用 `pnpm`。
@@ -15,6 +35,17 @@
   - Lint 修復：ESLint 自動修復 `.{js,ts,svelte}` 檔
 - **若檢驗失敗：** commit 被阻止，需修復後重試；修復後自動重新暫存並 commit
 - **跳過鉤子（不建議）：** `git commit --no-verify` 繞過檢驗（僅用於緊急情況）
+
+### Husky v10 升級提示
+
+近期 Husky 發布了 v10，若你在本地或 CI 看到 deprecation 警告，請檢查 `.husky/pre-commit` 與 `.husky/commit-msg`，移除舊式的引入行：
+
+```sh
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+```
+
+改為使用 Husky 新版推薦的安裝方式與腳本格式（或參考官方 migration guide），以避免在未來升級時發生鉤子失效的情況。
 
 ## 分支與 Commit 規範
 
