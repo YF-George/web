@@ -1547,7 +1547,6 @@
 							<!-- 備註區 -->
 							<div class="notes-area">
 								<label class="notes-label">
-									<span class="label-text">備註</span>
 									<textarea
 										class="notes-input"
 										placeholder="此團隊的備註（可留給管理員或臨時說明）"
@@ -1823,12 +1822,6 @@
 		align-items: flex-start;
 		width: 100%;
 		gap: 0.75rem;
-	}
-
-	.notes-label .label-text {
-		flex: 0 0 5.5rem;
-		font-weight: 700;
-		color: #111827;
 	}
 
 	.notes-input {
