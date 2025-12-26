@@ -5,7 +5,7 @@
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
 	import { parseRemoteGroups } from '$lib/types';
-	import { toLiveGroup } from '$lib/liveblocks-helper';
+	import { toLiveGroup } from '$lib/liveblocks';
 
 	interface GroupMember {
 		profession: string;
