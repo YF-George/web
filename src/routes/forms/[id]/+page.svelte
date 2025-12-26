@@ -1440,6 +1440,18 @@
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 	}
 
+	/* Reduce width for the level input to save horizontal space */
+	.departure-input.level {
+		width: 6.5rem;
+		max-width: 8rem;
+	}
+
+	@media (max-width: 640px) {
+		.departure-input.level {
+			width: 5rem;
+		}
+	}
+
 	/* Make disabled inputs look muted */
 	input[disabled],
 	select[disabled] {
