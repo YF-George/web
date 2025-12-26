@@ -5,6 +5,7 @@
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
 	import { parseRemoteGroups } from '$lib/types';
+	import { toLiveGroup } from '$lib/liveblocks-helper';
 
 	interface GroupMember {
 		profession: string;
@@ -144,42 +145,7 @@
 	let storageInitialized = false;
 	let storageRoot: LiveObject<LiveRoot> | null = null;
 
-	function toLiveGroup(g: LocalGroup): LiveObject<LiveGroup> {
-		return new LiveObject<LiveGroup>({
-			id: g.id,
-			members: new LiveList<LiveObject<LiveGroupMember>>(
-				(g.members || []).map(
-					(m) =>
-						new LiveObject<LiveGroupMember>({
-							profession: m.profession,
-							isDriver: !!m.isDriver,
-							isHelper: !!m.isHelper,
-							playerId: m.playerId || '',
-							gearScore: m.gearScore || ''
-						})
-				)
-			),
-			departureDate: g.departureDate || '',
-			departureTime: g.departureTime || '',
-			status: g.status || '招募中',
-			dungeonName: g.dungeonName || '',
-			level: g.level || '',
-			gearScoreReq: g.gearScoreReq || '',
-			contentType: g.contentType || '',
-			changeLog: new LiveList<LiveObject<LiveChangeLog>>(
-				(g.changeLog || []).map(
-					(c) =>
-						new LiveObject<LiveChangeLog>({
-							id: c.id,
-							timestamp: new Date(c.timestamp).toISOString(),
-							gameId: c.gameId,
-							action: c.action,
-							details: c.details
-						})
-				)
-			)
-		});
-	}
+	// `toLiveGroup` 已移至 `src/lib/liveblocks.ts`，在此匯入使用
 
 	// Push local state into Liveblocks storage once initialized
 	// 儲存初始化後，將本地資料寫回 Liveblocks
