@@ -93,15 +93,17 @@
 	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
 	const PENDING_UPDATE_DELAY = 3000; // 等待 3 秒合併多次輸入，減少紀錄雜訊
 
-	// 將欄位對應為中文標籤，供變更紀錄使用
+	// 將欄位對應為中文標籤，供變更紀錄使用（已本地化名稱）
 	const FIELD_LABELS: Record<string, string> = {
-		profession: '職能',
+		profession: '職業',
 		isDriver: '隊長',
 		isHelper: '幫打',
 		playerId: '玩家 ID',
-		gearScore: '裝分',
-		departureDate: '發車日期',
-		departureTime: '發車時間'
+		gearScore: '裝備分數',
+		departureDate: '開團日期',
+		departureTime: '開團時間',
+		contentType: '活動類型',
+		level: '角色等級'
 	};
 
 	// 產生 10 人的預設成員列表（坦/奶/輸出各一，其他為輸出）
@@ -419,10 +421,10 @@
 				memberIndex = group.members.findIndex((m) => m.id === pending.memberId);
 			}
 			const displayIndex = (memberIndex ?? 0) >= 0 ? (memberIndex ?? 0) + 1 : '?';
-			// 新格式：顯示舊值與新值
-			details = `成員 ${displayIndex} 的「${fieldLabel}」(${String(
-				pending.oldValue
-			)}) 更新為 (${String(pending.newValue)})`;
+			// 新格式：例如：成員 2 的玩家 ID 更新：00000 → 00000
+			details = `成員 ${displayIndex} 的 ${fieldLabel} 更新：${String(pending.oldValue)} → ${String(
+				pending.newValue
+			)}`;
 		} else {
 			// 團隊級欄位
 			if (pending.field === 'departureDate') {
@@ -432,10 +434,8 @@
 			} else if (pending.field === 'status') {
 				action = '更新狀態';
 			}
-			// 新格式：顯示舊值與新值
-			details = `「${fieldLabel}」(${String(pending.oldValue)}) 更新為 (${String(
-				pending.newValue
-			)})`;
+			// 新格式：例如：發車日期 更新：2025-01-01 → 2025-01-02
+			details = `${fieldLabel} 更新：${String(pending.oldValue)} → ${String(pending.newValue)}`;
 		}
 
 		group.changeLog = [
@@ -443,8 +443,14 @@
 				id: crypto.randomUUID(),
 				timestamp: new Date(),
 				gameId,
+				actorId: gameId,
 				action,
-				details
+				details,
+				targetType: (pending.index !== undefined ? 'member' : 'group') as 'member' | 'group',
+				targetId: pending.memberId ?? group.id,
+				field: pending.field,
+				oldValue: pending.oldValue as string | number | boolean | undefined,
+				newValue: pending.newValue as string | number | boolean | undefined
 			},
 			...(group.changeLog || [])
 		].slice(0, MAX_CHANGELOG_ENTRIES);
@@ -795,6 +801,51 @@
 		scheduleSyncGroup(groupId);
 	}
 
+	// 強制整數並 clamp 等級到 0..100，空字串保留為空 — 會直接覆寫 input 的值以防止繼續輸入
+	function clampLevelInput(e: Event, groupId: string) {
+		const input = e.target as HTMLInputElement;
+		const raw = (input.value ?? '').toString().trim();
+		if (raw === '') {
+			updateGroupField(groupId, undefined, 'level', '');
+			return;
+		}
+		let n = Math.floor(Number(raw));
+		if (!Number.isFinite(n) || Number.isNaN(n)) n = 0;
+		n = Math.max(0, Math.min(100, n));
+		input.value = String(n);
+		updateGroupField(groupId, undefined, 'level', String(n));
+	}
+
+	// 強制整數並 clamp 裝分到 0..99999（團級）— 直接覆寫 input 值
+	function clampGearScoreReqInput(e: Event, groupId: string) {
+		const input = e.target as HTMLInputElement;
+		const raw = (input.value ?? '').toString().trim();
+		if (raw === '') {
+			updateGroupField(groupId, undefined, 'gearScoreReq', '');
+			return;
+		}
+		let n = Math.floor(Number(raw));
+		if (!Number.isFinite(n) || Number.isNaN(n)) n = 0;
+		n = Math.max(0, Math.min(99999, n));
+		input.value = String(n);
+		updateGroupField(groupId, undefined, 'gearScoreReq', String(n));
+	}
+
+	// 強制整數並 clamp 裝分到 0..99999（成員級）— 直接覆寫 input 值
+	function clampMemberGearScoreInput(e: Event, groupId: string, index: number) {
+		const input = e.target as HTMLInputElement;
+		const raw = (input.value ?? '').toString().trim();
+		if (raw === '') {
+			updateGroupField(groupId, index, 'gearScore', '');
+			return;
+		}
+		let n = Math.floor(Number(raw));
+		if (!Number.isFinite(n) || Number.isNaN(n)) n = 0;
+		n = Math.max(0, Math.min(99999, n));
+		input.value = String(n);
+		updateGroupField(groupId, index, 'gearScore', String(n));
+	}
+
 	function getActiveGroup() {
 		return groups.find((g) => g.id === activeGroupId) || groups[0];
 	}
@@ -967,7 +1018,7 @@
 							class:active={activeTab === 'forms'}
 							onclick={() => (activeTab = 'forms')}
 						>
-							填寫表單
+							填寫報名表
 						</button>
 					</li>
 					{#if isAdmin}
@@ -977,7 +1028,7 @@
 								class:active={activeTab === 'history'}
 								onclick={() => (activeTab = 'history')}
 							>
-								更改紀錄
+								變更紀錄
 							</button>
 						</li>
 					{/if}
@@ -1058,7 +1109,7 @@
 									<input
 										class="departure-input departure-date"
 										type="date"
-										aria-label="發車日期"
+										aria-label="開團日期"
 										value={getActiveGroup().departureDate ?? ''}
 										onchange={(e) =>
 											updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
@@ -1069,7 +1120,7 @@
 									<input
 										class="departure-input departure-time"
 										type="time"
-										aria-label="發車時間"
+										aria-label="開團時間"
 										value={getActiveGroup().departureTime ?? ''}
 										onchange={(e) =>
 											updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
@@ -1109,19 +1160,19 @@
 								<label class="departure-label">
 									<input
 										class="departure-input level"
-										type="text"
+										type="number"
+										min="0"
+										max="100"
+										style="width:5.5rem; max-width:100%"
 										aria-label="等級"
 										placeholder="等級"
 										value={getActiveGroup().level ?? ''}
-										oninput={(e) =>
-											updateGroupField(
-												activeGroupId,
-												undefined,
-												'level',
-												(e.target as HTMLInputElement).value
-											)}
+										oninput={(e) => clampLevelInput(e, activeGroupId)}
 										disabled={isGroupReadOnly(getActiveGroup())}
 									/>
+									{#if String(getActiveGroup().level ?? '') !== '' && Number(getActiveGroup().level) > 100}
+										<div class="field-error">等級上限為 100</div>
+									{/if}
 								</label>
 								<label class="departure-label">
 									<input
@@ -1130,36 +1181,11 @@
 										aria-label="裝分限制"
 										placeholder="裝分限制"
 										value={getActiveGroup().gearScoreReq ?? ''}
-										oninput={(e) =>
-											updateGroupField(
-												activeGroupId,
-												undefined,
-												'gearScoreReq',
-												(e.target as HTMLInputElement).value
-											)}
+										oninput={(e) => clampGearScoreReqInput(e, activeGroupId)}
 										disabled={isGroupReadOnly(getActiveGroup())}
 									/>
 								</label>
-								<label class="departure-label">
-									<select
-										class="departure-input content-type"
-										aria-label="內容類型"
-										value={getActiveGroup().contentType ?? ''}
-										onchange={(e) =>
-											updateGroupField(
-												activeGroupId,
-												undefined,
-												'contentType',
-												(e.target as HTMLSelectElement).value
-											)}
-										disabled={isGroupReadOnly(getActiveGroup())}
-									>
-										<option value="">請選擇</option>
-										<option value="俠境">俠境</option>
-										<option value="百業">百業</option>
-										<option value="百業+俠境">百業+俠境</option>
-									</select>
-								</label>
+
 								<label class="departure-label status-label" style="margin-left: auto;">
 									<select
 										class="departure-input status-select"
@@ -1220,7 +1246,7 @@
 										<div class="form-row">
 											<div class="form-group">
 												<label>
-													<span class="label-text">職能</span>
+													<span class="label-text">職業</span>
 													<select
 														value={member.profession}
 														onchange={(e) =>
@@ -1270,17 +1296,15 @@
 													<input
 														type="number"
 														min="0"
+														max="99999"
 														placeholder="0"
 														value={member.gearScore}
-														oninput={(e) =>
-															updateGroupField(
-																activeGroupId,
-																index,
-																'gearScore',
-																(e.target as HTMLInputElement).value
-															)}
+														oninput={(e) => clampMemberGearScoreInput(e, activeGroupId, index)}
 														disabled={isGroupReadOnly(getActiveGroup())}
 													/>
+													{#if String(member.gearScore ?? '') !== '' && Number(member.gearScore) > 99999}
+														<div class="field-error">裝分上限為 99,999</div>
+													{/if}
 												</label>
 											</div>
 										</div>
@@ -1292,19 +1316,8 @@
 				{:else if activeTab === 'history' && isAdmin}
 					<section class="history-section">
 						<div class="history-header-wrapper">
-							<h2>📋 更改紀錄 - 團隊 {groups.findIndex((g) => g.id === activeGroupId) + 1}</h2>
 							<div class="history-stats">
 								{#if (getActiveGroup()?.changeLog ?? []).length > 0}
-									<span class="stat-item"
-										>變更數：<strong>{(getActiveGroup()?.changeLog ?? []).length}</strong></span
-									>
-									<span class="stat-item"
-										>最後更新：<strong
-											>{(getActiveGroup()?.changeLog?.[0]?.timestamp ?? new Date()).toLocaleString(
-												'zh-TW'
-											)}</strong
-										></span
-									>
 									{#if (getActiveGroup()?.changeLog ?? []).length >= MAX_CHANGELOG_ENTRIES}
 										<span class="stat-item warning">⚠️ 已達上限 ({MAX_CHANGELOG_ENTRIES} 筆)</span>
 									{/if}
@@ -1331,9 +1344,11 @@
 											{:else if entry.action === '更新成員'}
 												<span class="badge badge-update">✏️ {entry.action}</span>
 											{:else if entry.action === '更新發車日期'}
-												<span class="badge badge-date">{entry.action}</span>
+												<span class="badge badge-date">📅 {entry.action}</span>
 											{:else if entry.action === '更新發車時間'}
 												<span class="badge badge-time">⏰ {entry.action}</span>
+											{:else if entry.action === '更新狀態'}
+												<span class="badge badge-status">🔄 {entry.action}</span>
 											{:else}
 												<span class="badge">{entry.action}</span>
 											{/if}
@@ -1427,7 +1442,7 @@
 	.readonly-overlay {
 		position: absolute;
 		inset: 0;
-		background: rgba(255, 255, 255, 0.25); /* 白色半透明 (不模糊) */
+		background: rgba(255, 255, 255, 0); /* 白色半透明 (不模糊) */
 		z-index: 40;
 		pointer-events: auto; /* 阻擋下層互動 */
 	}
@@ -1440,23 +1455,18 @@
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 	}
 
-	/* Reduce width for the level input to save horizontal space */
-	.departure-input.level {
-		width: 6.5rem;
-		max-width: 8rem;
-	}
-
-	@media (max-width: 640px) {
-		.departure-input.level {
-			width: 5rem;
-		}
-	}
-
 	/* Make disabled inputs look muted */
 	input[disabled],
 	select[disabled] {
 		background-color: #f7f7f7;
 		color: #555;
 		cursor: not-allowed;
+	}
+
+	/* Inline field error */
+	.field-error {
+		color: #dc2626;
+		font-size: 0.8rem;
+		margin-top: 0.25rem;
 	}
 </style>
