@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  ci:
-    name: CI - format / lint / svelte-check / build
+  format:
+    name: Format check (Prettier)
     runs-on: ubuntu-latest
 
     steps:
@@ -32,15 +32,56 @@ jobs:
       - name: Format check (Prettier)
         run: pnpm exec prettier --check .
 
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
       - name: Lint (ESLint)
         run: pnpm exec eslint .
+
+  svelte-check:
+    name: Svelte Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Run svelte-check (capture output)
         run: |
           pnpm run check 2>&1 | tee svelte-check-output.txt
-
-      - name: Build
-        run: pnpm run build
 
       - name: Upload svelte-check output
         if: always()
@@ -48,3 +89,29 @@ jobs:
         with:
           name: svelte-check-output
           path: svelte-check-output.txt
+
+  build:
+    name: Build
+    needs: [format, lint, svelte-check]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build
