@@ -38,3 +38,19 @@
 .container {
 	box-sizing: border-box;
 }
+
+/* 副本名稱與等級的字體微調 */
+/* - 副本名稱使用主要 UI 字體（Noto Sans TC）並稍微加粗以強調 */
+.departure-input.dungeon-name {
+	font-family: var(--font-sans);
+	font-weight: 600;
+	font-size: 1rem;
+}
+
+/* - 等級欄使用等寬字體讓數字對齊更穩定，並加粗以利可讀性 */
+.departure-input.level {
+	font-family:
+		ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+}
