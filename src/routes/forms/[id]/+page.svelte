@@ -69,6 +69,7 @@
 		level?: string;
 		gearScoreReq?: string;
 		contentType?: string;
+		notes?: string;
 		changeLog: LiveList<LiveObject<LiveChangeLog>>;
 	};
 
