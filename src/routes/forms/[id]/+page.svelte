@@ -1549,7 +1549,7 @@
 								<label class="notes-label">
 									<textarea
 										class="notes-input"
-										placeholder="此團隊的備註（可留給管理員或臨時說明）"
+										placeholder="備註（可留放置攻略連結）"
 										value={getActiveGroup().notes ?? ''}
 										oninput={(e) =>
 											updateGroupField(
