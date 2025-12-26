@@ -152,7 +152,9 @@
 	function syncLocalGroupsToStorage() {
 		if (!storageInitialized || !storageRoot) return;
 		try {
-			const liveGroups = new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)));
+			const liveGroups = new LiveList<LiveObject<LiveGroup>>(
+				groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
+			);
 			storageRoot!.set('groups', liveGroups);
 		} catch (e) {
 			console.error('syncLocalGroupsToStorage error', e);
@@ -224,7 +226,9 @@
 				if (!existing) {
 					storageRoot.set(
 						'groups',
-						new LiveList<LiveObject<LiveGroup>>(groups.map((g) => toLiveGroup(g)))
+						new LiveList<LiveObject<LiveGroup>>(
+							groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
+						)
 					);
 				}
 			} catch (e) {
