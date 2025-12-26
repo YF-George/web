@@ -8,29 +8,37 @@ import globals from 'globals';
 import ts from 'typescript-eslint';
 import svelteConfig from './svelte.config.js';
 
+// Path to .gitignore so ESLint can include its ignore entries
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
-export default defineConfig(
+// Compose base configs in a readable way. We intentionally keep the existing
+// recommended configs for JS, TS and Svelte, plus Prettier to avoid conflicts.
+const baseConfigs = [
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
 	prettier,
-	...svelte.configs.prettier,
+	...svelte.configs.prettier
+];
+
+export default defineConfig(
+	...baseConfigs,
 	{
+		// Global environment globals available in all files
 		languageOptions: { globals: { ...globals.browser, ...globals.node } },
 
 		rules: {
-			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
-			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
+			// TypeScript projects should not use `no-undef` as TS already handles this
+			// See: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule
 			'no-undef': 'off',
 			// Disable resolve() requirement for SvelteKit 2 (resolve is deprecated in SvelteKit 2)
 			'svelte/no-navigation-without-resolve': 'off'
 		}
 	},
+	// Svelte-specific override: ensure parserOptions include the Svelte config
 	{
 		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
-
 		languageOptions: {
 			parserOptions: {
 				projectService: true,
