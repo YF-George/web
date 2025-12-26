@@ -6,4 +6,12 @@ bun.lock
 bun.lockb
 
 # Miscellaneous
+/.svelte-kit
+.venv
+.vscode
+.DS_Store
+dist
+build
+node_modules
 /static/
+
