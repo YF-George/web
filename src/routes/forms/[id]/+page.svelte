@@ -383,6 +383,7 @@
 						dungeonName: String(rr.dungeonName ?? ''),
 						level: String(rr.level ?? ''),
 						gearScoreReq: String(rr.gearScoreReq ?? ''),
+						notes: String(rr.notes ?? ''),
 						contentType: String(rr.contentType ?? ''),
 						changeLog: new LiveList<LiveObject<LiveChangeLog>>(
 							(((rr.changeLog ?? []) as unknown[]) || []).map((c: unknown) => {
@@ -657,6 +658,7 @@
 							status: localGroup.status || '招募中',
 							dungeonName: localGroup.dungeonName || '',
 							level: localGroup.level || '',
+							notes: localGroup.notes || '',
 							gearScoreReq: localGroup.gearScoreReq || '',
 							contentType: localGroup.contentType || '',
 							changeLog: new LiveList<LiveObject<LiveChangeLog>>(
