@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
@@ -173,6 +173,9 @@
 	// 自製刪除確認對話框 state
 	let pendingDeleteGroupId: string | null = null;
 
+	// 自製「立即清空」確認對話框 state
+	let pendingImmediateClear = false;
+
 	const initialGroup = createEmptyGroup();
 	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
 	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
@@ -278,8 +281,7 @@
 			// push cleared state to storage
 			scheduleFullSync();
 
-			status = '表單已於週日 20:00 自動清空（保留已鎖定成員）';
-			setTimeout(() => (status = ''), 6000);
+			// 不顯示成功提示，避免干擾使用者操作（UI 無需顯示自動清空成功訊息）
 		} catch (e) {
 			console.error('performWeeklyRefresh error', e);
 			status = '自動清空失敗，請稍後手動處理';
@@ -1191,6 +1193,15 @@
 				<div class="nav-actions">
 					<span class="nav-user" title={gameId || '訪客'}>{gameId || '訪客'}</span>
 					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
+					{#if isAdmin || dev}
+						<button
+							class="nav-clear"
+							onclick={() => (pendingImmediateClear = true)}
+							title="測試用：立即執行週期性清空"
+						>
+							立即清空
+						</button>
+					{/if}
 					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
 			</nav>
@@ -1271,6 +1282,31 @@
 												}}>確認刪除</button
 											>
 											<button class="btn" onclick={() => (pendingDeleteGroupId = null)}>取消</button
+											>
+										</div>
+									</div>
+								</div>
+							{/if}
+
+							{#if pendingImmediateClear}
+								<div class="modal-backdrop" role="dialog" aria-modal="true">
+									<div class="modal">
+										<h3>確認立即清空</h3>
+										<p>
+											您確定要立即執行「立即清空」操作嗎？此操作會清空所有團隊的欄位，但會保留已鎖定的成員。
+										</p>
+										<div class="modal-actions">
+											<button
+												class="btn btn-danger"
+												onclick={() => {
+													performWeeklyRefresh();
+													pendingImmediateClear = false;
+												}}
+											>
+												執行清空
+											</button>
+											<button class="btn" onclick={() => (pendingImmediateClear = false)}
+												>取消</button
 											>
 										</div>
 									</div>
@@ -1746,6 +1782,49 @@
 
 	.member-number:focus {
 		outline: 2px solid rgba(37, 99, 235, 0.35);
+		outline-offset: 2px;
+	}
+
+	/* 導覽列按鈕樣式：立即清空（危險/紅色）與登出（次要/藍色） */
+	.nav-actions .nav-clear,
+	.nav-actions .nav-logout {
+		padding: 0.45rem 0.75rem;
+		border-radius: 8px;
+		border: 1px solid transparent;
+		font-weight: 600;
+		cursor: pointer;
+		margin-left: 0.5rem;
+		background: transparent;
+		transition:
+			transform 120ms ease,
+			filter 120ms ease;
+	}
+
+	.nav-actions .nav-clear {
+		background: linear-gradient(180deg, #fff1f2, #fee2e2);
+		color: #b91c1c;
+		border-color: #fca5a5;
+	}
+
+	.nav-actions .nav-clear:hover {
+		filter: brightness(0.98);
+		transform: translateY(-1px);
+	}
+
+	.nav-actions .nav-logout {
+		background: linear-gradient(180deg, #eff6ff, #e6f0ff);
+		color: #1e3a8a;
+		border-color: #bfdbfe;
+	}
+
+	.nav-actions .nav-logout:hover {
+		filter: brightness(0.98);
+		transform: translateY(-1px);
+	}
+
+	.nav-actions .nav-clear:focus,
+	.nav-actions .nav-logout:focus {
+		outline: 2px solid rgba(37, 99, 235, 0.18);
 		outline-offset: 2px;
 	}
 </style>
