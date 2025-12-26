@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  svelte-check:
+  ci:
+    name: CI - format / lint / svelte-check / build
     runs-on: ubuntu-latest
 
     steps:
@@ -28,9 +29,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Format check (Prettier)
+        run: pnpm exec prettier --check .
+
+      - name: Lint (ESLint)
+        run: pnpm exec eslint .
+
       - name: Run svelte-check (capture output)
         run: |
           pnpm run check 2>&1 | tee svelte-check-output.txt
+
+      - name: Build
+        run: pnpm run build
 
       - name: Upload svelte-check output
         if: always()
