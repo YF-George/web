@@ -14,18 +14,8 @@
    Base styles and variables
 ========================================================= */
 :root {
-	/* 主題配色（由使用者提供）*/
-	--palette-1: rgb(245, 239, 230); /* 淺米色，主背景 */
-	--palette-2: rgb(232, 223, 202); /* 次背景 / 卡片 */
-	--palette-3: rgb(174, 189, 202); /* 中性色 / 次要按鈕 */
-	--palette-4: rgb(120, 149, 178); /* 主要色 / 強調色 */
-
-	--bg: var(--palette-1);
-	--surface: var(--palette-2);
+	--bg: #f5f7fb;
 	--muted: #6b7280;
-	--primary: var(--palette-4);
-	--accent: var(--palette-3);
-	--text: #1f2937;
 }
 
 * {
