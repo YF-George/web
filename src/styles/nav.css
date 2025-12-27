@@ -18,13 +18,13 @@
 	padding: 0.45rem 0.75rem;
 	border-radius: 8px;
 	font-weight: 600;
-	color: #374151;
+	color: var(--muted);
 	cursor: pointer;
 }
 
 .nav-link.active {
-	background: #2563eb;
-	color: white;
+	background: var(--primary);
+	color: var(--surface);
 }
 
 .nav-actions {
@@ -37,7 +37,7 @@
 	padding: 0.2rem 0.5rem;
 	border-radius: 8px;
 	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.08));
-	color: #0f172a;
+	color: var(--text);
 	font-weight: 700;
 }
 
@@ -50,13 +50,14 @@
 	flex-wrap: wrap;
 	align-items: center;
 	font-size: 0.85rem;
-	color: #0f172a;
+	color: var(--text);
 }
 .online-name {
 	background: rgba(15, 23, 42, 0.04);
 	padding: 0.15rem 0.4rem;
 	border-radius: 6px;
 	font-weight: 600;
+	color: var(--text);
 }
 
 /* 管理員顯示為紅色文字或 chip */
@@ -69,7 +70,7 @@
 /* 右側展開面板 */
 .online-status {
 	position: relative; /* for absolute panel */
-	margin-right: 1.5rem; /* 與導覽列保持距離，增加間距 */
+	margin-right: 1rem; /* 與導覽列保持距離 */
 }
 .online-toggle {
 	display: inline-flex;
@@ -91,11 +92,11 @@
 	left: calc(100% + 8px);
 	top: 50%;
 	transform: translateY(-50%);
-	background: white;
-	border: 1px solid #e5e7eb;
+	background: var(--surface);
+	border: 1px solid var(--border);
 	padding: 0.5rem;
 	border-radius: 8px;
-	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+	box-shadow: var(--card-shadow);
 	display: none;
 	min-width: 220px;
 	z-index: 50;
@@ -111,35 +112,36 @@
 	margin-right: 0.25rem;
 }
 
-/* Modal styles for centered online players dialog */
+/* Modal styles for online players */
 .online-modal-overlay {
 	position: fixed;
 	inset: 0;
+	background: rgba(15, 23, 42, 0.4);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: rgba(2, 6, 23, 0.45);
-	z-index: 1200;
+	z-index: 90;
 }
 .online-modal {
-	background: #fff;
-	border-radius: 10px;
-	width: 90%;
-	max-width: 480px;
-	box-shadow: 0 12px 40px rgba(2, 6, 23, 0.28);
-	overflow: hidden;
+	background: var(--surface);
+	border-radius: 12px;
+	width: min(720px, 90%);
+	max-height: 80%;
+	overflow: auto;
+	box-shadow: var(--card-shadow);
+	border: 1px solid var(--border);
 }
 .online-modal-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 0.8rem 1rem;
-	border-bottom: 1px solid #eef2f7;
+	padding: 0.75rem 1rem;
+	border-bottom: 1px solid var(--border);
 }
 .online-modal-body {
 	padding: 0.75rem 1rem;
 }
-.online-list {
+.online-names-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -147,28 +149,31 @@
 	flex-direction: column;
 	gap: 0.5rem;
 }
-.online-list-item {
+.online-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
+	padding: 0.45rem;
+	border-radius: 8px;
+}
+.kick-btn {
+	background: #ef4444;
+	color: var(--surface);
+	border: none;
+	padding: 0.35rem 0.6rem;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 700;
+}
+.kick-btn[disabled] {
+	opacity: 0.45;
+	cursor: not-allowed;
 }
 .modal-close {
 	background: transparent;
 	border: none;
 	font-size: 1rem;
 	cursor: pointer;
-}
-.kick-btn {
-	background: #ef4444;
-	color: white;
-	border: none;
-	padding: 0.25rem 0.5rem;
-	border-radius: 6px;
-	cursor: pointer;
-}
-.kick-btn:hover {
-	filter: brightness(0.95);
 }
 .nav-user {
 	display: inline-flex;
@@ -182,7 +187,7 @@
 	/* 使用者角色標籤（例如：一般玩家 / 管理員）
 	   加回 badge 樣式以提升可見性 */
 	font-size: 0.85rem;
-	color: #fff;
+	color: var(--surface);
 	background: linear-gradient(135deg, #fbbf24, #f59e0b);
 	border-radius: 8px;
 	padding: 0.25rem 0.5rem;
@@ -192,11 +197,11 @@
 /* Role-specific name backgrounds */
 .nav-user.player {
 	background: linear-gradient(135deg, #2563eb, #1e40af);
-	color: #fff;
+	color: var(--surface);
 }
 .nav-user.admin {
 	background: linear-gradient(135deg, #fbbf24, #f59e0b);
-	color: #0f172a;
+	color: var(--text);
 }
 
 /* Logout button visuals */
@@ -208,7 +213,7 @@
 	border-radius: 8px;
 	background: transparent;
 	border: 1px solid rgba(15, 23, 42, 0.08);
-	color: #0f172a;
+	color: var(--text);
 	font-weight: 700;
 	cursor: pointer;
 	transition:
@@ -217,7 +222,7 @@
 		box-shadow 160ms ease;
 }
 .nav-logout:hover {
-	background: #f8fafc;
+	background: rgba(248, 250, 252, 0.9);
 	transform: translateY(-1px);
 }
 .nav-logout:active {

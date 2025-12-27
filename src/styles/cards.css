@@ -80,8 +80,8 @@
 	gap: 0.75rem;
 }
 .group-summary-card {
-	background: white;
-	border: 2px solid #e5e7eb;
+	background: var(--surface);
+	border: 2px solid var(--border);
 	border-radius: 12px;
 	padding: 0.75rem;
 	display: flex;
@@ -98,8 +98,8 @@
 .group-summary-card:focus,
 .group-summary-card:hover {
 	transform: translateY(-4px);
-	box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
-	border-color: #d1d5db;
+	box-shadow: var(--card-shadow);
+	border-color: rgba(0, 0, 0, 0.06);
 	outline: none;
 }
 
@@ -138,6 +138,7 @@
 .group-summary-header {
 	font-weight: 700;
 	font-family: var(--font-sans);
+	color: var(--text);
 }
 .group-summary-top {
 	display: flex;
@@ -181,7 +182,7 @@
 	padding: 0.28rem 0.5rem; /* adjust for two columns */
 	border-radius: 8px;
 	background: rgba(15, 23, 42, 0.04);
-	color: #0f172a;
+	color: var(--text);
 	font-size: 0.9rem;
 	width: 100%;
 	box-sizing: border-box;
@@ -278,9 +279,9 @@
 	}
 }
 
-.member-card {
-	background: white;
-	border: 2px solid #e5e7eb;
+member-card {
+	background: var(--surface);
+	border: 2px solid var(--border);
 	border-radius: 12px;
 	padding: 0.8rem;
 	display: flex;
@@ -301,7 +302,7 @@
 	border: 1px solid rgba(15, 23, 42, 0.06);
 	cursor: pointer;
 	font-weight: 800;
-	color: #0f172a;
+	color: var(--text);
 	transition:
 		background 120ms ease,
 		transform 120ms ease;
@@ -312,7 +313,7 @@
 	transform: translateY(-1px);
 }
 .member-check[aria-pressed='true'] {
-	background: linear-gradient(135deg, #10b981, #059669);
+	background: linear-gradient(135deg, var(--primary), #059669);
 	color: #fff;
 	border-color: transparent;
 	box-shadow: 0 8px 20px rgba(5, 150, 105, 0.12);
