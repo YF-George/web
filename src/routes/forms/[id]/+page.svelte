@@ -1095,9 +1095,7 @@
 				storageRoot.set('kicked', new LiveList([entry]));
 			} else {
 				// push object entry with timestamp
-				(existing as LiveList<Record<string, unknown>>).push(
-					entry as unknown as Record<string, unknown>
-				);
+				(existing as LiveList<{ name: string; ts: number }>).push(entry);
 			}
 			// 將標註短暫保留於 storage，之後自動移除只會移除我們剛加入的那一筆（以 ts 精確比對），
 			// 同時也會清理過期項目（超過 10 秒）以避免累積。
@@ -1125,7 +1123,15 @@
 						});
 						storageRoot.set(
 							'kicked',
-							new LiveList(filtered as unknown as Array<Record<string, unknown>>)
+							new LiveList<{ name: string; ts: number }>(
+								filtered.filter(
+									(item): item is { name: string; ts: number } =>
+										typeof item === 'object' &&
+										item !== null &&
+										typeof (item as Record<string, unknown>).name === 'string' &&
+										typeof (item as Record<string, unknown>).ts === 'number'
+								)
+							)
 						);
 					}
 				} catch {
@@ -1612,21 +1618,20 @@
 										{#each othersList as o (o.connectionId ?? o.id ?? o.name)}
 											<li class="online-row">
 												<span class="online-name" class:admin={o.isAdmin}>{o.name}</span>
-												<button
-													class="kick-btn"
-													type="button"
-													disabled={!isAdmin || o.name === gameId}
-													onclick={() => {
-														if (!isAdmin) return;
-														if (o.name === gameId) return;
-														const ok = confirm(`確定要將 ${o.name} 踢出房間？`);
-														if (ok) {
-															adminKick(o.name);
-														}
-													}}
-												>
-													踢出
-												</button>
+												{#if isAdmin && o.name !== gameId}
+													<button
+														class="kick-btn"
+														type="button"
+														onclick={() => {
+															const ok = confirm(`確定要將 ${o.name} 踢出房間？`);
+															if (ok) {
+																adminKick(o.name);
+															}
+														}}
+													>
+														踢出
+													</button>
+												{/if}
 											</li>
 										{/each}
 									</ul>
