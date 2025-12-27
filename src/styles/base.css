@@ -25,32 +25,14 @@
 	--circuit-dot: rgba(0, 0, 0, 0.12);
 	--circuit-dot-2: rgba(255, 255, 255, 0.12);
 
-	/* semantic/accent colors */
-	--accent-recruit: #2563eb;
-	--accent-recruit-100: rgba(37, 99, 235, 0.12);
-	--accent-recruit-60: rgba(37, 99, 235, 0.06);
-	--accent-recruit-18: rgba(37, 99, 235, 0.18);
-
-	--accent-ready: #10b981;
-	--accent-ready-100: rgba(16, 185, 129, 0.12);
-	--accent-ready-60: rgba(16, 185, 129, 0.06);
-	--accent-ready-18: rgba(16, 185, 129, 0.18);
-
-	--accent-done: #ef4444;
-	--accent-done-100: rgba(239, 68, 68, 0.12);
-	--accent-done-60: rgba(239, 68, 68, 0.06);
-	--accent-done-18: rgba(239, 68, 68, 0.18);
-
-	--accent-tank-start: #f59e0b;
-	--accent-tank-end: rgba(245, 158, 11, 0.03);
-	--accent-healer-start: #10b981;
-	--accent-healer-end: rgba(16, 185, 129, 0.03);
-	--accent-dps-start: #3b82f6;
-	--accent-dps-end: rgba(59, 130, 246, 0.03);
-
-	/* chip / inline element backgrounds */
-	--chip-bg: rgba(15, 23, 42, 0.04);
-	--chip-bg-hover: rgba(15, 23, 42, 0.08);
+	/* form-specific theme variables (used by forms/cards/history) */
+	--form-surface: #ffffff;
+	--form-border: #e5e7eb;
+	--form-text: #0f172a;
+	--form-muted: #6b7280;
+	--form-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
+	--form-chip-bg: rgba(15, 23, 42, 0.04);
+	--form-accent: var(--primary);
 }
 
 /* Dark theme variables (applied when [data-theme="dark"]) */
@@ -65,6 +47,15 @@
 	--circuit-line: rgba(255, 255, 255, 0.04);
 	--circuit-dot: rgba(255, 255, 255, 0.08);
 	--circuit-dot-2: rgba(255, 255, 255, 0.06);
+
+	/* form-specific theme variables (dark) */
+	--form-surface: #071226;
+	--form-border: #1f2937;
+	--form-text: #e6eef8;
+	--form-muted: #9ca3af;
+	--form-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+	--form-chip-bg: rgba(255, 255, 255, 0.03);
+	--form-accent: var(--primary);
 
 	/* placeholder color for inputs (adapts to theme) */
 	--placeholder: #5b5b6b;

@@ -42,8 +42,8 @@
 	z-index: 10; /* keep above cards but below modal */
 	padding: 0.5rem 0.65rem;
 	border-radius: 8px;
-	background: linear-gradient(135deg, var(--accent-done), #b91c1c);
-	color: var(--surface);
+	background: linear-gradient(135deg, #ef4444, #b91c1c);
+	color: #fff;
 	font-weight: 700;
 	border: none;
 	cursor: pointer;
@@ -61,7 +61,7 @@
 	font-family: var(--font-sans);
 	font-weight: 900; /* 加粗 */
 	font-size: 1.25rem; /* 放大 */
-	color: var(--text);
+	color: #0f172a;
 	display: flex;
 	align-items: baseline;
 	gap: 0.5rem;
@@ -80,8 +80,8 @@
 	gap: 0.75rem;
 }
 .group-summary-card {
-	background: var(--surface);
-	border: 2px solid var(--border);
+	background: var(--form-surface);
+	border: 2px solid var(--form-border);
 	border-radius: 12px;
 	padding: 0.75rem;
 	display: flex;
@@ -98,7 +98,7 @@
 .group-summary-card:focus,
 .group-summary-card:hover {
 	transform: translateY(-4px);
-	box-shadow: var(--card-shadow);
+	box-shadow: var(--form-shadow);
 	border-color: rgba(0, 0, 0, 0.06);
 	outline: none;
 }
@@ -138,7 +138,7 @@
 .group-summary-header {
 	font-weight: 700;
 	font-family: var(--font-sans);
-	color: var(--text);
+	color: var(--form-text);
 }
 .group-summary-top {
 	display: flex;
@@ -153,16 +153,16 @@
 	font-weight: 700;
 }
 .status-pill.recruit {
-	background: var(--accent-recruit-100);
-	color: var(--text);
+	background: rgba(37, 99, 235, 0.12);
+	color: #0f172a;
 }
 .status-pill.ready {
-	background: var(--accent-ready-100);
-	color: var(--text);
+	background: rgba(16, 185, 129, 0.12);
+	color: #0f172a;
 }
 .status-pill.done {
-	background: var(--accent-done-100);
-	color: var(--text);
+	background: rgba(239, 68, 68, 0.12);
+	color: #0f172a;
 }
 .group-summary-members {
 	/* show members in a compact 2-column grid inside the summary card
@@ -181,8 +181,8 @@
 	gap: 0.5rem;
 	padding: 0.28rem 0.5rem; /* adjust for two columns */
 	border-radius: 8px;
-	background: var(--chip-bg);
-	color: var(--text);
+	background: var(--form-chip-bg);
+	color: var(--form-text);
 	font-size: 0.9rem;
 	width: 100%;
 	box-sizing: border-box;
@@ -201,38 +201,26 @@
 
 /* style member name when labelled as driver/helper */
 .member-name.driver {
-	color: var(--accent-done);
+	color: #b91c1c; /* red-ish for driver */
 	font-weight: 700;
 }
 .member-name.helper {
-	color: var(--accent-ready);
+	color: #0f766e; /* green-ish for helper */
 	font-weight: 700;
 }
 
 /* Profession-specific chip colors */
 .member-chip.prof-tank {
-	background: linear-gradient(
-		90deg,
-		var(--accent-tank-start, #f59e0b) 0%,
-		var(--accent-tank-end, rgba(245, 158, 11, 0.03)) 100%
-	);
-	border-left: 4px solid var(--accent-tank-start);
+	background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
+	border-left: 4px solid #f59e0b;
 }
 .member-chip.prof-healer {
-	background: linear-gradient(
-		90deg,
-		var(--accent-healer-start, #10b981) 0%,
-		var(--accent-healer-end, rgba(16, 185, 129, 0.03)) 100%
-	);
-	border-left: 4px solid var(--accent-healer-start);
+	background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.03));
+	border-left: 4px solid #10b981;
 }
 .member-chip.prof-dps {
-	background: linear-gradient(
-		90deg,
-		var(--accent-dps-start, #3b82f6) 0%,
-		var(--accent-dps-end, rgba(59, 130, 246, 0.03)) 100%
-	);
-	border-left: 4px solid var(--accent-dps-start);
+	background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03));
+	border-left: 4px solid #3b82f6;
 }
 
 .group-summary-meta {
@@ -241,11 +229,11 @@
 	align-items: center;
 	margin-top: 0.5rem;
 	font-size: 0.85rem;
-	color: var(--muted);
+	color: var(--form-muted);
 	flex-wrap: wrap; /* allow meta items to wrap to next line */
 }
 .group-summary-meta .meta-item strong {
-	color: var(--text);
+	color: var(--form-text);
 }
 .group-summary-card {
 	min-height: 8rem; /* ensure consistent card height */
@@ -292,8 +280,8 @@
 }
 
 member-card {
-	background: var(--surface);
-	border: 2px solid var(--border);
+	background: var(--form-surface);
+	border: 2px solid var(--form-border);
 	border-radius: 12px;
 	padding: 0.8rem;
 	display: flex;
@@ -310,11 +298,11 @@ member-card {
 	height: 2rem;
 	padding: 0 0.5rem;
 	border-radius: 8px;
-	background: rgba(15, 23, 42, 0.04);
+	background: var(--form-chip-bg);
 	border: 1px solid rgba(15, 23, 42, 0.06);
 	cursor: pointer;
 	font-weight: 800;
-	color: var(--text);
+	color: var(--form-text);
 	transition:
 		background 120ms ease,
 		transform 120ms ease;
@@ -338,15 +326,15 @@ member-card {
 
 /* Member header (號碼與角色徽章) */
 .member-header {
-	border-bottom: 2px solid var(--border);
+	border-bottom: 2px solid var(--form-border);
 	align-items: center;
 	gap: 0.75rem;
 	padding-bottom: 0.75rem;
 	display: flex;
 }
 .member-number {
-	color: var(--surface);
-	background: linear-gradient(135deg, var(--accent-dps-start), var(--accent-recruit));
+	color: #fff;
+	background: linear-gradient(135deg, #3b82f6, #2563eb);
 	border-radius: 8px;
 	flex-shrink: 0;
 	/* 置中數字：水平 + 垂直置中，移除額外 padding */
@@ -370,7 +358,7 @@ member-card {
 
 /* 鎖定狀態：醒目顏色與陰影，並略微放大 */
 .member-number.pinned {
-	background: linear-gradient(135deg, var(--accent-done), #dc2626); /* 紅色系，表示已鎖定 */
+	background: linear-gradient(135deg, #ef4444, #dc2626); /* 紅色系，表示已鎖定 */
 	box-shadow: 0 8px 22px rgba(220, 38, 38, 0.18);
 	transform: scale(1.04);
 }
@@ -392,10 +380,10 @@ member-card {
 }
 .badge-checkbox {
 	cursor: pointer;
-	color: var(--muted); /* darker for better contrast */
+	color: #374151; /* darker for better contrast */
 	user-select: none;
-	background: var(--surface);
-	border: 1px solid var(--border); /* lighter border for softer look */
+	background: #f3f4f6;
+	border: 1px solid #e6e9ee; /* lighter border for softer look */
 	border-radius: 14px;
 	display: inline-flex;
 	align-items: center;
