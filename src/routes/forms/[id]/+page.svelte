@@ -536,21 +536,41 @@
 			// others 訂閱：更新線上使用者計數顯示
 			unsubscribeOthers = room.subscribe('others', (o) => {
 				try {
-					const parseEntry = (entry: any) => {
+					const parseEntry = (entry: Record<string, unknown> | null | undefined) => {
 						// entry may contain presence or info fields depending on Liveblocks setup
-						const connectionId = entry?.connectionId ?? entry?.connection_id ?? undefined;
-						const id = entry?.id ?? entry?.userId ?? entry?.actor ?? undefined;
-						const presence = entry?.presence ?? entry?.presence?.user ?? undefined;
-						const info = entry?.info ?? entry?.userInfo ?? undefined;
+						const e = (entry ?? {}) as Record<string, unknown>;
+						const connectionId = (e.connectionId ?? e.connection_id) as number | undefined;
+						const id = (e.id ?? e.userId ?? e.actor) as string | undefined;
+
+						// presence may be either an object of fields or an object with a `user` child
+						let presenceObj: Record<string, unknown> | undefined;
+						const rawPresence = e.presence as unknown;
+						if (rawPresence && typeof rawPresence === 'object') {
+							const pr = rawPresence as Record<string, unknown>;
+							if (pr.user && typeof pr.user === 'object')
+								presenceObj = pr.user as Record<string, unknown>;
+							else presenceObj = pr;
+						}
+
+						// info similarly may be present under different keys
+						let infoObj: Record<string, unknown> | undefined;
+						const rawInfo = (e.info ?? e.userInfo) as unknown;
+						if (rawInfo && typeof rawInfo === 'object')
+							infoObj = rawInfo as Record<string, unknown>;
+
 						let name = '';
 						let isAdminFlag = false;
-						if (presence && typeof presence === 'object') {
-							name = String(presence.name ?? presence.displayName ?? presence.username ?? '');
-							isAdminFlag = !!(presence.isAdmin ?? presence.is_admin ?? false);
+						if (presenceObj) {
+							name = String(
+								presenceObj.name ?? presenceObj.displayName ?? presenceObj.username ?? ''
+							);
+							isAdminFlag = !!(presenceObj.isAdmin ?? presenceObj.is_admin ?? false);
 						}
-						if (!name && info && typeof info === 'object') {
-							name = String(info.name ?? info.displayName ?? info.username ?? info.email ?? '');
-							isAdminFlag = isAdminFlag || !!(info.isAdmin ?? info.is_admin ?? false);
+						if (!name && infoObj) {
+							name = String(
+								infoObj.name ?? infoObj.displayName ?? infoObj.username ?? infoObj.email ?? ''
+							);
+							isAdminFlag = isAdminFlag || !!(infoObj.isAdmin ?? infoObj.is_admin ?? false);
 						}
 						if (!name) name = String(id ?? connectionId ?? '匿名');
 						return { connectionId, id, name, isAdmin: isAdminFlag };
@@ -562,13 +582,17 @@
 					} else if (
 						o &&
 						typeof (o as { size?: unknown }).size === 'number' &&
-						typeof (o as any).values === 'function'
+						typeof (o as { values?: unknown }).values === 'function'
 					) {
 						// Map/Set-like
-						list = Array.from((o as any).values()).map(parseEntry);
+						list = Array.from((o as { values: () => Iterable<unknown> }).values()).map((v) =>
+							parseEntry(v as Record<string, unknown> | null | undefined)
+						);
 					} else if (o && typeof o === 'object') {
 						// plain object keyed by connection id
-						list = Object.values(o as unknown as Record<string, unknown>).map(parseEntry);
+						list = Object.values(o as unknown as Record<string, unknown>).map((v) =>
+							parseEntry(v as Record<string, unknown> | null | undefined)
+						);
 					}
 
 					othersList = list;
@@ -576,23 +600,25 @@
 
 					// 檢查 kicked 名單（若有）並自動移除被標記者
 					try {
-						let immutable: any = null;
+						let immutable: unknown = null;
 						if (storageRoot) {
-							immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+							immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable() as unknown;
 						}
-						const kicked = (immutable as any)?.kicked ?? [];
+						const kicked = ((immutable as Record<string, unknown> | null)?.kicked ??
+							[]) as unknown[];
 						if (Array.isArray(kicked) && kicked.length > 0) {
 							const myName = gameId || '';
 							if (myName && !isAdmin) {
 								const now = Date.now();
-								const matched = (kicked as any[]).some((k) => {
+								const matched = (kicked as unknown[]).some((k) => {
 									if (k && typeof k === 'object') {
+										const kk = k as Record<string, unknown>;
 										// only consider kicks that target this name AND were created after this connection joined
-										const ts = Number(k.ts || 0);
+										const ts = Number(kk.ts ?? 0);
 										// require kick to be after the connection join finished (small buffer)
 										const joinBuffer = joinedAt ? joinedAt + 500 : 0;
 										// also ignore kicks that are too old ( > 10s ) to avoid race conditions
-										return String(k.name) === myName && ts >= joinBuffer && now - ts < 10000;
+										return String(kk.name ?? '') === myName && ts >= joinBuffer && now - ts < 10000;
 									}
 									// backward compatibility if stored as plain string: ignore (do not auto-kick old-format entries)
 									return false;
@@ -602,13 +628,13 @@
 										if (leave) leave();
 										isLoggedIn = false;
 										joinedAt = 0;
-									} catch (e) {
-										console.error('leave after kicked error', e);
+									} catch (err) {
+										console.error('leave after kicked error', err);
 									}
 								}
 							}
 						}
-					} catch (e) {
+					} catch {
 						// ignore
 					}
 				} catch (e) {
@@ -694,15 +720,15 @@
 							if (room && typeof room.updatePresence === 'function') {
 								room.updatePresence({ lastActive: Date.now() });
 							}
-						} catch (e) {
+						} catch {
 							// ignore
 						}
 					} catch (e) {
 						console.error('auto-leave error', e);
 					}
 				}, INACTIVITY_MS);
-			} catch (e) {
-				console.error('resetInactivityTimer error', e);
+			} catch (err) {
+				console.error('resetInactivityTimer error', err);
 			}
 		}
 
@@ -712,7 +738,7 @@
 				if (isLoggedIn && room && typeof room.updatePresence === 'function') {
 					room.updatePresence({ lastActive: Date.now() });
 				}
-			} catch (e) {
+			} catch {
 				// ignore
 			}
 		};
@@ -1069,33 +1095,40 @@
 				storageRoot.set('kicked', new LiveList([entry]));
 			} else {
 				// push object entry with timestamp
-				(existing as LiveList<any>).push(entry);
+				(existing as LiveList<Record<string, unknown>>).push(
+					entry as unknown as Record<string, unknown>
+				);
 			}
 			// 將標註短暫保留於 storage，之後自動移除只會移除我們剛加入的那一筆（以 ts 精確比對），
 			// 同時也會清理過期項目（超過 10 秒）以避免累積。
 			setTimeout(() => {
 				try {
 					if (!storageRoot) return;
-					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
-					const currentKicked = (immutable as any)?.kicked ?? [];
+					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable() as unknown;
+					const currentKicked = ((immutable as Record<string, unknown> | null)?.kicked ??
+						[]) as unknown[];
 					if (Array.isArray(currentKicked)) {
 						const now = Date.now();
-						const filtered = (currentKicked as any[]).filter((item) => {
+						const filtered = (currentKicked as unknown[]).filter((item) => {
 							// keep items that are not the exact entry we created, and also keep items younger than expiry
 							if (item && typeof item === 'object') {
-								const itemTs = Number(item.ts || 0);
+								const it = item as Record<string, unknown>;
+								const itemTs = Number(it.ts ?? 0);
 								// remove only the entry that matches both name and ts
-								if (String(item.name) === targetName && itemTs === entry.ts) return false;
+								if (String(it.name ?? '') === targetName && itemTs === entry.ts) return false;
 								// expire items older than 10s
 								if (now - itemTs > 10000) return false;
 								return true;
 							}
-							// legacy string entries: expire them if older than 10s (we can't know ts)
+							// legacy string entries: keep them (can't determine ts here)
 							return true;
 						});
-						storageRoot.set('kicked', new LiveList(filtered));
+						storageRoot.set(
+							'kicked',
+							new LiveList(filtered as unknown as Array<Record<string, unknown>>)
+						);
 					}
-				} catch (e) {
+				} catch {
 					// ignore cleanup errors
 				}
 			}, 1500);
@@ -1576,7 +1609,7 @@
 								</header>
 								<div class="online-modal-body">
 									<ul class="online-names-list">
-										{#each othersList as o}
+										{#each othersList as o (o.connectionId ?? o.id ?? o.name)}
 											<li class="online-row">
 												<span class="online-name" class:admin={o.isAdmin}>{o.name}</span>
 												<button
