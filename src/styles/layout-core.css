@@ -29,7 +29,31 @@
 	align-items: center;
 	padding: 0.5rem 0.75rem;
 	border-radius: 12px;
-	background: linear-gradient(90deg, #fff, #f8fafc);
-	border: 1px solid #e5e7eb;
-	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+	background: linear-gradient(
+		90deg,
+		var(--surface),
+		color-mix(in srgb, var(--surface) 80%, var(--bg) 20%)
+	);
+	border: 1px solid var(--border);
+	box-shadow: var(--card-shadow);
+	color: var(--text);
+}
+
+/* floating theme toggle button */
+.theme-toggle {
+	position: fixed;
+	right: 1rem;
+	bottom: 1rem;
+	z-index: 9999;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	padding: 0.5rem 0.6rem;
+	border-radius: 999px;
+	box-shadow: var(--card-shadow);
+	cursor: pointer;
+}
+
+.theme-toggle:focus {
+	outline: 2px solid color-mix(in srgb, var(--primary) 40%, var(--surface));
 }

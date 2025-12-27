@@ -12,10 +12,48 @@
 
 	let { children } = $props();
 
+	// theme: 'light' | 'dark'
+	let theme: 'light' | 'dark' = 'light';
+
+	function applyTheme(t: 'light' | 'dark') {
+		if (typeof document === 'undefined') return;
+		document.documentElement.setAttribute('data-theme', t);
+	}
+
+	function setTheme(t: 'light' | 'dark') {
+		theme = t;
+		applyTheme(t);
+		try {
+			localStorage.setItem('theme', t);
+		} catch {
+			// ignore
+		}
+	}
+
+	function toggleTheme() {
+		setTheme(theme === 'dark' ? 'light' : 'dark');
+	}
+
 	// In dev mode, enable visual debug outlines to help locate overlays/stacking blocks
 	onMount(() => {
 		if (dev && typeof document !== 'undefined') {
 			document.body.classList.add('debug-top');
+		}
+
+		// initialize theme from localStorage or system preference
+		if (typeof window !== 'undefined') {
+			try {
+				const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
+				if (saved === 'light' || saved === 'dark') {
+					setTheme(saved);
+				} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+					setTheme('dark');
+				} else {
+					setTheme('light');
+				}
+			} catch {
+				setTheme('light');
+			}
 		}
 	});
 	onDestroy(() => {
@@ -31,5 +69,17 @@
 	<div class="circuit-background"></div>
 	<div class="circuit-content">
 		{@render children()}
+		<button
+			class="theme-toggle"
+			type="button"
+			aria-label="切換深色/亮色主題"
+			on:click={toggleTheme}
+		>
+			{#if theme === 'dark'}
+				☀️
+			{:else}
+				🌙
+			{/if}
+		</button>
 	</div>
 </div>

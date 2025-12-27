@@ -16,6 +16,22 @@
 :root {
 	--bg: #f5f7fb;
 	--muted: #6b7280;
+	--surface: #ffffff;
+	--text: #0f172a;
+	--primary: #0ea5e9;
+	--border: #e5e7eb;
+	--card-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+}
+
+/* Dark theme variables (applied when [data-theme="dark"]) */
+:root[data-theme='dark'] {
+	--bg: #0b1220;
+	--muted: #9ca3af;
+	--surface: #071226;
+	--text: #e6eef8;
+	--primary: #60a5fa;
+	--border: #1f2937;
+	--card-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
 }
 
 /* Use Noto Sans TC as the primary UI font with sensible fallbacks */
