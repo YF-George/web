@@ -7,10 +7,10 @@
 */
 
 .history-section {
-	background: white;
+	background: var(--surface);
 	border-radius: 12px;
 	padding: 2rem;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	box-shadow: var(--card-shadow);
 }
 
 .history-list {
@@ -25,30 +25,30 @@
 	gap: 0.75rem;
 	padding: 0.5rem 0.75rem;
 	border-radius: 8px;
-	border: 1px solid #e5e7eb;
+	border: 1px solid var(--border);
 	border-left: 3px solid #667eea;
-	background: white;
+	background: var(--surface);
 	flex-wrap: wrap;
 }
 
 .history-details {
 	flex: 1;
 	font-size: 0.85rem;
-	color: #4b5563;
+	color: var(--muted);
 }
 
 .history-user {
 	font-size: 0.75rem;
-	color: #9ca3af;
+	color: var(--muted);
 }
 
 /* 小統計項目（例如：變更數 / 最後更新 / 其他線上人數） */
 .stat-item {
-	color: #6b7280;
+	color: var(--muted);
 	font-size: 0.95rem;
 }
 .stat-item strong {
-	color: #1f2937;
+	color: var(--text);
 	font-weight: 700;
 }
 .stat-item.warning {

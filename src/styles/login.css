@@ -14,7 +14,7 @@ login.css
 }
 
 .login-card {
-	background: white;
+	background: var(--surface);
 	border-radius: 20px;
 	padding: 2rem;
 	max-width: 360px;
@@ -22,7 +22,7 @@ login.css
 	display: flex;
 	flex-direction: column;
 	gap: 1.25rem;
-	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	box-shadow: var(--card-shadow);
 }
 
 .login-header {
@@ -47,7 +47,7 @@ login.css
 
 .login-input {
 	padding: 1rem 1.25rem;
-	border: 2px solid #e5e7eb;
+	border: 2px solid var(--border);
 	border-radius: 12px;
 	font-size: 1.05rem;
 	transition: all 0.2s ease;
