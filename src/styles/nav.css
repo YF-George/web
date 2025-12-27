@@ -188,7 +188,7 @@
 	   加回 badge 樣式以提升可見性 */
 	font-size: 0.85rem;
 	color: var(--surface);
-	background: linear-gradient(135deg, #fbbf24, #f59e0b);
+	background: linear-gradient(135deg, var(--accent-yellow-start), var(--accent-yellow-end));
 	border-radius: 8px;
 	padding: 0.25rem 0.5rem;
 	font-weight: 600;
@@ -196,11 +196,11 @@
 
 /* Role-specific name backgrounds */
 .nav-user.player {
-	background: linear-gradient(135deg, #2563eb, #1e40af);
+	background: linear-gradient(135deg, var(--accent-blue-end), var(--accent-blue-start));
 	color: var(--surface);
 }
 .nav-user.admin {
-	background: linear-gradient(135deg, #fbbf24, #f59e0b);
+	background: linear-gradient(135deg, var(--accent-yellow-start), var(--accent-yellow-end));
 	color: var(--text);
 }
 
@@ -238,19 +238,18 @@
    - 用在表單頁上方的分頁式團隊標籤：`團隊 1 ×`、`+ 添加團隊`
    - 放在 nav partial 以便全站共用樣式
 */
-.tabs {
-	/* 回復為原本內容寬度的排列：以 flex 排列，維持 tab 原始大小 */
-	display: flex;
-	flex-wrap: wrap; /* 多個 tab 時可換行 */
-	gap: 0.5rem;
+.tab.add {
+	display: inline-flex;
 	align-items: center;
-	width: auto;
-}
-
-/* 如果頁面未使用 .tabs-wrapper，改套在 .tabs-header 上以確保區塊可見 */
-.tabs-header {
-	padding: 0.4rem 0rem 1rem 0rem;
-	border-radius: 12px;
+	gap: 0.4rem;
+	cursor: pointer;
+	padding: 0.45rem 0.5rem; /* 保留高度，縮小水平內距 */
+	border-radius: 8px;
+	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
+	color: var(--surface);
+	font-weight: 600;
+	border: none;
+	font-size: 0.95rem;
 }
 
 /* 外層大框：包覆整個標籤列（如 團隊 1 × 團隊 2 × + 添加團隊）
@@ -356,12 +355,8 @@
 }
 
 .tab.recruit {
-	background: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--status-recruit) 10%, transparent),
-		color-mix(in srgb, var(--status-recruit-bg) 6%, transparent)
-	);
-	color: var(--team-text-basic);
+	background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
+	color: #0f172a;
 }
 .tab.recruit.active {
 	background: linear-gradient(135deg, #3f6ed3);
@@ -370,12 +365,8 @@
 }
 
 .tab.ready {
-	background: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--status-ready) 10%, transparent),
-		color-mix(in srgb, var(--status-ready-bg) 6%, transparent)
-	);
-	color: var(--team-text-basic);
+	background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.06));
+	color: #0f172a;
 }
 .tab.ready.active {
 	background: linear-gradient(135deg, #16bb6e);
@@ -384,12 +375,8 @@
 }
 
 .tab.done {
-	background: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--status-done) 10%, transparent),
-		color-mix(in srgb, var(--status-done-bg) 6%, transparent)
-	);
-	color: var(--team-text-basic);
+	background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.06));
+	color: #0f172a;
 }
 .tab.done.active {
 	background: linear-gradient(135deg, #e94747);

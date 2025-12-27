@@ -80,8 +80,8 @@
 	gap: 0.75rem;
 }
 .group-summary-card {
-	background: var(--form-surface);
-	border: 2px solid var(--form-border);
+	background: var(--surface);
+	border: 2px solid var(--border);
 	border-radius: 12px;
 	padding: 0.75rem;
 	display: flex;
@@ -98,46 +98,59 @@
 .group-summary-card:focus,
 .group-summary-card:hover {
 	transform: translateY(-4px);
-	box-shadow: var(--form-shadow);
+	box-shadow: var(--card-shadow);
 	border-color: rgba(0, 0, 0, 0.06);
 	outline: none;
 }
 
 /* Status-aware summary card coloring to match tabs */
 .group-summary-card.recruit {
-	background: var(--status-recruit-bg);
-	border-color: var(--status-recruit-border);
+	background: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--accent-blue-start) 6%, transparent),
+		color-mix(in srgb, var(--accent-blue-end) 3%, transparent)
+	);
+	border-color: color-mix(in srgb, var(--accent-blue-end) 12%, transparent);
 }
 .group-summary-card.recruit .group-summary-header {
-	color: var(--team-text-basic);
+	color: #0f172a;
 }
 .group-summary-card.recruit:focus,
 .group-summary-card.recruit:hover {
-	background: color-mix(in srgb, var(--status-recruit-bg) 80%, var(--status-recruit) 20%);
-	border-color: color-mix(in srgb, var(--status-recruit-border) 90%, var(--status-recruit) 10%);
+	/* Use a subtler tint on hover/focus to avoid overly saturated fill */
+	background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
+	border-color: rgba(37, 99, 235, 0.18);
 }
 .group-summary-card.ready {
-	background: var(--status-ready-bg);
-	border-color: var(--status-ready-border);
+	background: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--accent-green-start) 6%, transparent),
+		color-mix(in srgb, var(--accent-green-end) 3%, transparent)
+	);
+	border-color: color-mix(in srgb, var(--accent-green-end) 12%, transparent);
 }
 .group-summary-card.ready:focus,
 .group-summary-card.ready:hover {
-	background: color-mix(in srgb, var(--status-ready-bg) 80%, var(--status-ready) 20%);
-	border-color: color-mix(in srgb, var(--status-ready-border) 90%, var(--status-ready) 10%);
+	background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.06));
+	border-color: rgba(16, 185, 129, 0.18);
 }
 .group-summary-card.done {
-	background: var(--status-done-bg);
-	border-color: var(--status-done-border);
+	background: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--accent-red-start) 6%, transparent),
+		color-mix(in srgb, var(--accent-red-end) 3%, transparent)
+	);
+	border-color: color-mix(in srgb, var(--accent-red-end) 12%, transparent);
 }
 .group-summary-card.done:focus,
 .group-summary-card.done:hover {
-	background: color-mix(in srgb, var(--status-done-bg) 80%, var(--status-done) 20%);
-	border-color: color-mix(in srgb, var(--status-done-border) 90%, var(--status-done) 10%);
+	background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.06));
+	border-color: rgba(239, 68, 68, 0.18);
 }
 .group-summary-header {
 	font-weight: 700;
 	font-family: var(--font-sans);
-	color: var(--form-text);
+	color: var(--text);
 }
 .group-summary-top {
 	display: flex;
@@ -152,16 +165,16 @@
 	font-weight: 700;
 }
 .status-pill.recruit {
-	background: rgba(37, 99, 235, 0.12);
-	color: #0f172a;
+	background: color-mix(in srgb, var(--accent-blue-start) 12%, transparent);
+	color: var(--accent-muted-text);
 }
 .status-pill.ready {
-	background: rgba(16, 185, 129, 0.12);
-	color: #0f172a;
+	background: color-mix(in srgb, var(--accent-green-start) 12%, transparent);
+	color: var(--accent-muted-text);
 }
 .status-pill.done {
-	background: rgba(239, 68, 68, 0.12);
-	color: #0f172a;
+	background: color-mix(in srgb, var(--accent-red-start) 12%, transparent);
+	color: var(--accent-muted-text);
 }
 .group-summary-members {
 	/* show members in a compact 2-column grid inside the summary card
@@ -180,8 +193,8 @@
 	gap: 0.5rem;
 	padding: 0.28rem 0.5rem; /* adjust for two columns */
 	border-radius: 8px;
-	background: var(--form-chip-bg);
-	color: var(--form-text);
+	background: rgba(15, 23, 42, 0.04);
+	color: var(--text);
 	font-size: 0.9rem;
 	width: 100%;
 	box-sizing: border-box;
@@ -210,28 +223,16 @@
 
 /* Profession-specific chip colors */
 .member-chip.prof-tank {
-	background: linear-gradient(
-		90deg,
-		color-mix(in srgb, var(--prof-tank-front) 8%, transparent),
-		color-mix(in srgb, var(--prof-tank-back) 4%, transparent)
-	);
-	border-left: 4px solid var(--prof-tank-front);
+	background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
+	border-left: 4px solid #f59e0b;
 }
 .member-chip.prof-healer {
-	background: linear-gradient(
-		90deg,
-		color-mix(in srgb, var(--prof-healer-front) 8%, transparent),
-		color-mix(in srgb, var(--prof-healer-back) 4%, transparent)
-	);
-	border-left: 4px solid var(--prof-healer-front);
+	background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.03));
+	border-left: 4px solid #10b981;
 }
 .member-chip.prof-dps {
-	background: linear-gradient(
-		90deg,
-		color-mix(in srgb, var(--prof-dps-front) 8%, transparent),
-		color-mix(in srgb, var(--prof-dps-back) 4%, transparent)
-	);
-	border-left: 4px solid var(--prof-dps-front);
+	background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03));
+	border-left: 4px solid #3b82f6;
 }
 
 .group-summary-meta {
@@ -240,11 +241,11 @@
 	align-items: center;
 	margin-top: 0.5rem;
 	font-size: 0.85rem;
-	color: var(--form-muted);
+	color: #374151;
 	flex-wrap: wrap; /* allow meta items to wrap to next line */
 }
 .group-summary-meta .meta-item strong {
-	color: var(--form-text);
+	color: #0f172a;
 }
 .group-summary-card {
 	min-height: 8rem; /* ensure consistent card height */
@@ -290,9 +291,9 @@
 	}
 }
 
-.member-card {
-	background: var(--form-surface);
-	border: 2px solid var(--form-border);
+member-card {
+	background: var(--surface);
+	border: 2px solid var(--border);
 	border-radius: 12px;
 	padding: 0.8rem;
 	display: flex;
@@ -309,11 +310,11 @@
 	height: 2rem;
 	padding: 0 0.5rem;
 	border-radius: 8px;
-	background: var(--form-chip-bg);
+	background: rgba(15, 23, 42, 0.04);
 	border: 1px solid rgba(15, 23, 42, 0.06);
 	cursor: pointer;
 	font-weight: 800;
-	color: var(--form-text);
+	color: var(--text);
 	transition:
 		background 120ms ease,
 		transform 120ms ease;
@@ -337,7 +338,7 @@
 
 /* Member header (號碼與角色徽章) */
 .member-header {
-	border-bottom: 2px solid var(--form-border);
+	border-bottom: 2px solid #f3f4f6;
 	align-items: center;
 	gap: 0.75rem;
 	padding-bottom: 0.75rem;
