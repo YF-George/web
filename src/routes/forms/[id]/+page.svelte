@@ -76,6 +76,10 @@
 
 	type LiveRoot = {
 		groups: LiveList<LiveObject<LiveGroup>>;
+		kicked?: LiveList<{
+			name: string;
+			ts: number;
+		}>;
 	};
 
 	interface ChangeLog {
@@ -172,9 +176,40 @@
 	let isLoggedIn = false;
 	let isAdmin = false;
 	let isLoading = false;
+	// 當前連線的加入時間 (ms since epoch)，用於避免舊的 kicked 條目誤判新連線
+	let joinedAt = 0;
 
 	// 目前線上（others）數量
 	let othersCount = 0;
+	// 線上使用者清單（含顯示名稱/id）
+	let othersList: { connectionId?: number; id?: string; name: string; isAdmin?: boolean }[] = [];
+	// header 名單展開狀態
+	let showOnlineNames = false;
+
+	function _onKeydownClose(e: KeyboardEvent) {
+		if (e.key === 'Escape' || e.key === 'Esc') {
+			showOnlineNames = false;
+			try {
+				if (typeof document !== 'undefined')
+					document.removeEventListener('keydown', _onKeydownClose as EventListener);
+			} catch (e) {
+				void e;
+			}
+		}
+	}
+
+	function toggleShowOnlineNames(e: MouseEvent) {
+		e.stopPropagation();
+		showOnlineNames = !showOnlineNames;
+		try {
+			if (typeof document !== 'undefined') {
+				if (showOnlineNames) document.addEventListener('keydown', _onKeydownClose);
+				else document.removeEventListener('keydown', _onKeydownClose as EventListener);
+			}
+		} catch (err) {
+			void err;
+		}
+	}
 
 	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
@@ -501,14 +536,81 @@
 			// others 訂閱：更新線上使用者計數顯示
 			unsubscribeOthers = room.subscribe('others', (o) => {
 				try {
-					let n = 0;
-					if (Array.isArray(o)) n = o.length;
-					else if (o && typeof (o as { size?: unknown }).size === 'number')
-						n = (o as { size?: number }).size ?? 0;
-					else if (o && typeof o === 'object')
-						n = Object.keys(o as unknown as Record<string, unknown>).length;
-					// others typically excludes self; directly assign
-					othersCount = n;
+					const parseEntry = (entry: any) => {
+						// entry may contain presence or info fields depending on Liveblocks setup
+						const connectionId = entry?.connectionId ?? entry?.connection_id ?? undefined;
+						const id = entry?.id ?? entry?.userId ?? entry?.actor ?? undefined;
+						const presence = entry?.presence ?? entry?.presence?.user ?? undefined;
+						const info = entry?.info ?? entry?.userInfo ?? undefined;
+						let name = '';
+						let isAdminFlag = false;
+						if (presence && typeof presence === 'object') {
+							name = String(presence.name ?? presence.displayName ?? presence.username ?? '');
+							isAdminFlag = !!(presence.isAdmin ?? presence.is_admin ?? false);
+						}
+						if (!name && info && typeof info === 'object') {
+							name = String(info.name ?? info.displayName ?? info.username ?? info.email ?? '');
+							isAdminFlag = isAdminFlag || !!(info.isAdmin ?? info.is_admin ?? false);
+						}
+						if (!name) name = String(id ?? connectionId ?? '匿名');
+						return { connectionId, id, name, isAdmin: isAdminFlag };
+					};
+
+					let list: { connectionId?: number; id?: string; name: string }[] = [];
+					if (Array.isArray(o)) {
+						list = o.map(parseEntry);
+					} else if (
+						o &&
+						typeof (o as { size?: unknown }).size === 'number' &&
+						typeof (o as any).values === 'function'
+					) {
+						// Map/Set-like
+						list = Array.from((o as any).values()).map(parseEntry);
+					} else if (o && typeof o === 'object') {
+						// plain object keyed by connection id
+						list = Object.values(o as unknown as Record<string, unknown>).map(parseEntry);
+					}
+
+					othersList = list;
+					othersCount = list.length;
+
+					// 檢查 kicked 名單（若有）並自動移除被標記者
+					try {
+						let immutable: any = null;
+						if (storageRoot) {
+							immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+						}
+						const kicked = (immutable as any)?.kicked ?? [];
+						if (Array.isArray(kicked) && kicked.length > 0) {
+							const myName = gameId || '';
+							if (myName && !isAdmin) {
+								const now = Date.now();
+								const matched = (kicked as any[]).some((k) => {
+									if (k && typeof k === 'object') {
+										// only consider kicks that target this name AND were created after this connection joined
+										const ts = Number(k.ts || 0);
+										// require kick to be after the connection join finished (small buffer)
+										const joinBuffer = joinedAt ? joinedAt + 500 : 0;
+										// also ignore kicks that are too old ( > 10s ) to avoid race conditions
+										return String(k.name) === myName && ts >= joinBuffer && now - ts < 10000;
+									}
+									// backward compatibility if stored as plain string: ignore (do not auto-kick old-format entries)
+									return false;
+								});
+								if (matched) {
+									try {
+										if (leave) leave();
+										isLoggedIn = false;
+										joinedAt = 0;
+									} catch (e) {
+										console.error('leave after kicked error', e);
+									}
+								}
+							}
+						}
+					} catch (e) {
+						// ignore
+					}
 				} catch (e) {
 					console.error('others subscribe error', e);
 				}
@@ -563,6 +665,71 @@
 			}
 		})();
 
+		// --- 自動掛機檢測（非管理員才會自動離開） ---
+		let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+		const INACTIVITY_MS = 3 * 60 * 1000; // 3 分鐘
+
+		function resetInactivityTimer() {
+			try {
+				// 若為管理員，清除計時器並不啟用自動離開
+				if (isAdmin) {
+					if (inactivityTimer) {
+						clearTimeout(inactivityTimer);
+						inactivityTimer = null;
+					}
+					return;
+				}
+
+				if (inactivityTimer) clearTimeout(inactivityTimer);
+				inactivityTimer = setTimeout(() => {
+					try {
+						// 再次檢查管理員狀態以避免 race condition
+						if (isAdmin) return;
+						// 不顯示自動離開的提示，僅執行離開行為
+						if (leave) leave();
+						isLoggedIn = false;
+						joinedAt = 0;
+						// 同步最後活動時間到 presence（安全檢查 room 是否存在）
+						try {
+							if (room && typeof room.updatePresence === 'function') {
+								room.updatePresence({ lastActive: Date.now() });
+							}
+						} catch (e) {
+							// ignore
+						}
+					} catch (e) {
+						console.error('auto-leave error', e);
+					}
+				}, INACTIVITY_MS);
+			} catch (e) {
+				console.error('resetInactivityTimer error', e);
+			}
+		}
+
+		const _onActivity = () => {
+			resetInactivityTimer();
+			try {
+				if (isLoggedIn && room && typeof room.updatePresence === 'function') {
+					room.updatePresence({ lastActive: Date.now() });
+				}
+			} catch (e) {
+				// ignore
+			}
+		};
+		const _onVisibilityChange = () => {
+			if (typeof document !== 'undefined' && document.visibilityState === 'visible')
+				resetInactivityTimer();
+		};
+		const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+		if (typeof window !== 'undefined') {
+			for (const ev of activityEvents) window.addEventListener(ev, _onActivity, { passive: true });
+			if (typeof document !== 'undefined') {
+				document.addEventListener('visibilitychange', _onVisibilityChange);
+			}
+			// 啟動計時
+			resetInactivityTimer();
+		}
+
 		// cleanup function returned synchronously from onMount
 		return () => {
 			try {
@@ -582,6 +749,24 @@
 			}
 			try {
 				if (leave) leave();
+			} catch (e) {
+				void e;
+			}
+			// 移除自動掛機的事件監聽與計時器
+			try {
+				if (typeof window !== 'undefined') {
+					const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+					for (const ev of activityEvents)
+						window.removeEventListener(ev, _onActivity as EventListener);
+				}
+				if (typeof document !== 'undefined') {
+					document.removeEventListener('visibilitychange', _onVisibilityChange as EventListener);
+					document.removeEventListener('keydown', _onKeydownClose as EventListener);
+				}
+				if (inactivityTimer) {
+					clearTimeout(inactivityTimer);
+					inactivityTimer = null;
+				}
 			} catch (e) {
 				void e;
 			}
@@ -820,8 +1005,11 @@
 			if (result.success) {
 				isLoggedIn = true;
 				isAdmin = !!result.isAdmin;
+				joinedAt = Date.now();
 				// 登入成功後立即嘗試從儲存層載入現有的 groups
 				ensureLoadGroupsAfterLogin();
+				// 嘗試將使用者暱稱寫入 presence，讓 others 顯示非匿名名稱
+				updateMyPresenceWithRetry();
 			} else {
 				status = `❌ ${result.error || '登入失敗'}`;
 				setTimeout(() => (status = ''), 3000);
@@ -839,6 +1027,7 @@
 	function logout() {
 		isLoggedIn = false;
 		isAdmin = false;
+		joinedAt = 0;
 
 		// 提交所有未提交的更新
 		pendingUpdates.forEach((pending, key) => {
@@ -851,6 +1040,89 @@
 		groups = [createEmptyGroup()];
 		activeGroupId = groups[0].id;
 		pendingUpdates.clear();
+	}
+
+	// 嘗試將本地使用者資訊寫入 presence
+	function updateMyPresence() {
+		try {
+			if (!room) return;
+			// room.updatePresence 接受任意物件；我們放入 name 與 isAdmin 與 lastActive
+			room.updatePresence({ name: gameId || '', isAdmin: !!isAdmin, lastActive: Date.now() });
+		} catch (e) {
+			console.error('updateMyPresence error', e);
+		}
+	}
+
+	// 管理員將玩家踢出：把名稱加入 shared `kicked` 清單（由 client 端檢查並自動離開）
+	function adminKick(targetName: string) {
+		if (!isAdmin) return;
+		if (!storageInitialized || !storageRoot) {
+			// fallback: broadcast nothing if storage unavailable
+			status = '無法執行踢出：儲存未就緒';
+			setTimeout(() => (status = ''), 2500);
+			return;
+		}
+		try {
+			const existing = storageRoot.get('kicked');
+			const entry = { name: targetName, ts: Date.now() };
+			if (!existing) {
+				storageRoot.set('kicked', new LiveList([entry]));
+			} else {
+				// push object entry with timestamp
+				(existing as LiveList<any>).push(entry);
+			}
+			// 將標註短暫保留於 storage，之後自動移除只會移除我們剛加入的那一筆（以 ts 精確比對），
+			// 同時也會清理過期項目（超過 10 秒）以避免累積。
+			setTimeout(() => {
+				try {
+					if (!storageRoot) return;
+					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+					const currentKicked = (immutable as any)?.kicked ?? [];
+					if (Array.isArray(currentKicked)) {
+						const now = Date.now();
+						const filtered = (currentKicked as any[]).filter((item) => {
+							// keep items that are not the exact entry we created, and also keep items younger than expiry
+							if (item && typeof item === 'object') {
+								const itemTs = Number(item.ts || 0);
+								// remove only the entry that matches both name and ts
+								if (String(item.name) === targetName && itemTs === entry.ts) return false;
+								// expire items older than 10s
+								if (now - itemTs > 10000) return false;
+								return true;
+							}
+							// legacy string entries: expire them if older than 10s (we can't know ts)
+							return true;
+						});
+						storageRoot.set('kicked', new LiveList(filtered));
+					}
+				} catch (e) {
+					// ignore cleanup errors
+				}
+			}, 1500);
+
+			// silent: do not display a public status message when admin kicks a user
+		} catch (e) {
+			console.error('adminKick error', e);
+			status = '踢出動作失敗';
+			setTimeout(() => (status = ''), 2000);
+		}
+	}
+
+	// 如果 room 尚未就緒，retry 幾次後放棄
+	function updateMyPresenceWithRetry(retries = 10, delay = 300) {
+		if (!isLoggedIn) return;
+		let attempts = 0;
+		const t = setInterval(() => {
+			attempts += 1;
+			if (room) {
+				updateMyPresence();
+				clearInterval(t);
+				return;
+			}
+			if (attempts >= retries) {
+				clearInterval(t);
+			}
+		}, delay);
 	}
 
 	// 管理員新增團隊，並寫入「建立團隊」紀錄
@@ -1253,9 +1525,82 @@
 {:else}
 	<div class="container">
 		<header>
-			<div class="online-status" aria-live="polite" title="其他線上使用者數量">
+			<div class="online-status" aria-live="polite" title="其他線上使用者">
 				{#if othersCount > 0}
-					<span class="online-badge">在線：{othersCount}</span>
+					<button
+						class="online-badge online-toggle"
+						type="button"
+						aria-expanded={showOnlineNames}
+						onclick={toggleShowOnlineNames}
+					>
+						<span class="online-count">在線：{othersCount}</span>
+						<span class="chev" aria-hidden={showOnlineNames ? 'false' : 'true'}
+							>{showOnlineNames ? '▾' : '▸'}</span
+						>
+					</button>
+					{#if showOnlineNames}
+						<div
+							class="online-modal-overlay"
+							role="button"
+							tabindex="0"
+							aria-label="關閉在線玩家清單"
+							onclick={() => (showOnlineNames = false)}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.preventDefault();
+									showOnlineNames = false;
+								}
+							}}
+						>
+							<div
+								class="online-modal"
+								role="dialog"
+								aria-modal="true"
+								tabindex="0"
+								onclick={(event) => event.stopPropagation()}
+								onkeydown={(e) => {
+									// Prevent closing modal when pressing keys inside modal
+									if (e.key === 'Escape') {
+										e.stopPropagation();
+									}
+								}}
+							>
+								<header class="online-modal-header">
+									<h3>在線玩家 ({othersCount})</h3>
+									<button
+										class="modal-close"
+										type="button"
+										onclick={() => (showOnlineNames = false)}
+										aria-label="關閉">✕</button
+									>
+								</header>
+								<div class="online-modal-body">
+									<ul class="online-names-list">
+										{#each othersList as o}
+											<li class="online-row">
+												<span class="online-name" class:admin={o.isAdmin}>{o.name}</span>
+												<button
+													class="kick-btn"
+													type="button"
+													disabled={!isAdmin || o.name === gameId}
+													onclick={() => {
+														if (!isAdmin) return;
+														if (o.name === gameId) return;
+														const ok = confirm(`確定要將 ${o.name} 踢出房間？`);
+														if (ok) {
+															adminKick(o.name);
+														}
+													}}
+												>
+													踢出
+												</button>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							</div>
+						</div>
+					{/if}
 				{:else}
 					<span class="online-badge">無其他使用者</span>
 				{/if}
