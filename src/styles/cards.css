@@ -307,7 +307,7 @@
 	flex-wrap: wrap; /* allow meta items to wrap to next line */
 }
 .group-summary-meta .meta-item strong {
-	color: #0f172a;
+	color: #808081;
 }
 .group-summary-card {
 	min-height: 8rem; /* ensure consistent card height */

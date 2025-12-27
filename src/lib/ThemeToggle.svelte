@@ -16,7 +16,7 @@
 		try {
 			const saved = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | null;
 			if (saved === 'dark' || saved === 'light') theme = saved;
-		} catch (e) {
+		} catch {
 			/* ignore localStorage errors */
 		}
 		applyTheme(theme);
@@ -26,7 +26,7 @@
 		theme = theme === 'dark' ? 'light' : 'dark';
 		try {
 			localStorage.setItem(THEME_KEY, theme);
-		} catch (e) {
+		} catch {
 			/* ignore */
 		}
 		applyTheme(theme);

@@ -15,7 +15,7 @@ export function toLiveGroup(g: LocalGroup) {
 						pinned: !!m.pinned,
 						checked: !!m.checked,
 						// preserve role ('' | 'leader' | 'helper') when mapping to LiveObject
-						role: (m as any).role ?? '',
+						role: m.role ?? '',
 						profession: m.profession,
 						playerId: m.playerId || '',
 						gearScore: m.gearScore || ''

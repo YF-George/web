@@ -31,9 +31,7 @@
 		}
 	}
 
-	function toggleTheme() {
-		setTheme(theme === 'dark' ? 'light' : 'dark');
-	}
+	// toggleTheme removed: theme control is exposed via ThemeToggle component
 
 	// In dev mode, enable visual debug outlines to help locate overlays/stacking blocks
 	onMount(() => {
@@ -66,7 +64,7 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="circuit-wrapper">
+<div class="circuit-wrapper" data-theme={theme}>
 	<div class="circuit-background"></div>
 	<div class="circuit-content">
 		{@render children()}

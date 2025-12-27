@@ -915,11 +915,16 @@
 											id: m.id,
 											pinned: !!m.pinned,
 											profession: m.profession,
-											role: ((m as any).role ??
-												((m as any).isDriver ? 'leader' : (m as any).isHelper ? 'helper' : '')) as
-												| ''
-												| 'leader'
-												| 'helper',
+											role: (() => {
+												const mr = m as unknown as Record<string, unknown>;
+												if (typeof mr.role === 'string') {
+													const rv = mr.role as '' | 'leader' | 'helper';
+													if (rv === '' || rv === 'leader' || rv === 'helper') return rv;
+												}
+												if (mr.isDriver) return 'leader';
+												if (mr.isHelper) return 'helper';
+												return '' as '' | 'leader' | 'helper';
+											})(),
 											playerId: m.playerId || '',
 											gearScore: m.gearScore || ''
 										})
