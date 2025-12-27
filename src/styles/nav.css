@@ -260,9 +260,9 @@
 	display: block;
 	padding: 1rem;
 	border-radius: 12px;
-	border: 1px solid #e5e7eb;
-	background: rgba(248, 248, 248, 0.904);
-	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+	border: 1px solid var(--border);
+	background: linear-gradient(180deg, rgba(248, 248, 248, 0.5), var(--surface));
+	box-shadow: var(--card-shadow);
 }
 
 .tab {
@@ -276,14 +276,14 @@
 }
 
 .tab:hover {
-	background: #f9fafb;
-	color: #1f2937;
+	background: rgba(0, 0, 0, 0.03);
+	color: var(--text);
 }
 
 .tab.active {
-	background: #2563eb;
-	color: #fff;
-	border-color: #2563eb;
+	background: var(--primary);
+	color: var(--surface);
+	border-color: var(--primary);
 }
 
 .tab-close {
