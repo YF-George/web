@@ -3,6 +3,7 @@ export interface GroupMember {
 	id: string; // member 永久唯一識別（避免使用陣列 index）
 	order?: number; // 用於 UI 排序，可重排
 	pinned?: boolean;
+	checked?: boolean;
 	profession: string;
 	isDriver: boolean;
 	isHelper: boolean;
@@ -59,6 +60,7 @@ function parseMember(m: unknown): GroupMember {
 				`m-${Date.now()}-${Math.floor(Math.random() * 1e6)}`),
 		order: typeof r.order === 'number' ? (r.order as number) : undefined,
 		pinned: !!r.pinned,
+		checked: !!r.checked,
 		profession: safeString(r.profession) || '輸出',
 		isDriver: !!r.isDriver,
 		isHelper: !!r.isHelper,
