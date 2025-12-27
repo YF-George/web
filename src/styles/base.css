@@ -21,6 +21,11 @@
 	--primary: #0ea5e9;
 	--border: #e5e7eb;
 	--card-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+
+	/* circuit background pattern colors (light theme) */
+	--circuit-line: rgba(255, 255, 255, 0.08);
+	--circuit-dot: rgba(255, 255, 255, 0.12);
+	--circuit-dot-2: rgba(55, 65, 81, 0.12);
 }
 
 /* Dark theme variables (applied when [data-theme="dark"]) */
@@ -32,6 +37,11 @@
 	--primary: #60a5fa;
 	--border: #1f2937;
 	--card-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+
+	/* circuit background pattern colors (dark theme) */
+	--circuit-line: rgba(255, 255, 255, 0.04);
+	--circuit-dot: rgba(255, 255, 255, 0.08);
+	--circuit-dot-2: rgba(255, 255, 255, 0.06);
 }
 
 /* Use Noto Sans TC as the primary UI font with sensible fallbacks */
