@@ -34,6 +34,36 @@
 	--form-chip-bg: rgba(15, 23, 42, 0.04);
 	--form-accent: var(--primary);
 }
+/* Status & profession color tokens (team-specific) */
+:root {
+	/* Status: 招募中 / 已準備 / 已出團 */
+	--status-recruit: #5d707f;
+	--status-recruit-bg: #40464c;
+	--status-recruit-border: #5e6e7c;
+
+	--status-ready: #5c7c5f;
+	--status-ready-bg: #434f42;
+	--status-ready-border: #677a5e;
+
+	--status-done: #7c5c5c;
+	--status-done-bg: #4c4040;
+	--status-done-border: #775d5d;
+
+	/* Professions: 坦克 / 治療 / 輸出 (前/後) */
+	--prof-tank-front: #f59e0b;
+	--prof-tank-back: #494227;
+	--prof-healer-front: #10b981;
+	--prof-healer-back: #364936;
+	--prof-dps-front: #3b82f6;
+	--prof-dps-back: #2c414f;
+
+	/* Team text colors */
+	--team-text-basic: #ffffff;
+	--team-text-captain: #ff788f;
+	--team-text-helper-tank: #f59e0b;
+	--team-text-helper-healer: #10b981;
+	--team-text-helper-dps: #3b82f6;
+}
 
 /* Dark theme variables (applied when [data-theme="dark"]) */
 :root[data-theme='dark'] {

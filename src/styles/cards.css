@@ -105,35 +105,34 @@
 
 /* Status-aware summary card coloring to match tabs */
 .group-summary-card.recruit {
-	background: linear-gradient(180deg, rgba(37, 99, 235, 0.06), rgba(37, 99, 235, 0.03));
-	border-color: rgba(37, 99, 235, 0.12);
+	background: var(--status-recruit-bg);
+	border-color: var(--status-recruit-border);
 }
 .group-summary-card.recruit .group-summary-header {
-	color: #0f172a;
+	color: var(--team-text-basic);
 }
 .group-summary-card.recruit:focus,
 .group-summary-card.recruit:hover {
-	/* Use a subtler tint on hover/focus to avoid overly saturated fill */
-	background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
-	border-color: rgba(37, 99, 235, 0.18);
+	background: color-mix(in srgb, var(--status-recruit-bg) 80%, var(--status-recruit) 20%);
+	border-color: color-mix(in srgb, var(--status-recruit-border) 90%, var(--status-recruit) 10%);
 }
 .group-summary-card.ready {
-	background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.03));
-	border-color: rgba(16, 185, 129, 0.12);
+	background: var(--status-ready-bg);
+	border-color: var(--status-ready-border);
 }
 .group-summary-card.ready:focus,
 .group-summary-card.ready:hover {
-	background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.06));
-	border-color: rgba(16, 185, 129, 0.18);
+	background: color-mix(in srgb, var(--status-ready-bg) 80%, var(--status-ready) 20%);
+	border-color: color-mix(in srgb, var(--status-ready-border) 90%, var(--status-ready) 10%);
 }
 .group-summary-card.done {
-	background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.03));
-	border-color: rgba(239, 68, 68, 0.12);
+	background: var(--status-done-bg);
+	border-color: var(--status-done-border);
 }
 .group-summary-card.done:focus,
 .group-summary-card.done:hover {
-	background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.06));
-	border-color: rgba(239, 68, 68, 0.18);
+	background: color-mix(in srgb, var(--status-done-bg) 80%, var(--status-done) 20%);
+	border-color: color-mix(in srgb, var(--status-done-border) 90%, var(--status-done) 10%);
 }
 .group-summary-header {
 	font-weight: 700;
@@ -211,16 +210,28 @@
 
 /* Profession-specific chip colors */
 .member-chip.prof-tank {
-	background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
-	border-left: 4px solid #f59e0b;
+	background: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--prof-tank-front) 8%, transparent),
+		color-mix(in srgb, var(--prof-tank-back) 4%, transparent)
+	);
+	border-left: 4px solid var(--prof-tank-front);
 }
 .member-chip.prof-healer {
-	background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.03));
-	border-left: 4px solid #10b981;
+	background: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--prof-healer-front) 8%, transparent),
+		color-mix(in srgb, var(--prof-healer-back) 4%, transparent)
+	);
+	border-left: 4px solid var(--prof-healer-front);
 }
 .member-chip.prof-dps {
-	background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03));
-	border-left: 4px solid #3b82f6;
+	background: linear-gradient(
+		90deg,
+		color-mix(in srgb, var(--prof-dps-front) 8%, transparent),
+		color-mix(in srgb, var(--prof-dps-back) 4%, transparent)
+	);
+	border-left: 4px solid var(--prof-dps-front);
 }
 
 .group-summary-meta {
