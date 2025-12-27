@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	// 使用 Svelte 5 runes API，移除不正確的 state 匯入
 	import { dev } from '$app/environment';
 	import '../styles/base.css';
 	import '../styles/background.css';
@@ -13,7 +14,7 @@
 	let { children } = $props();
 
 	// theme: 'light' | 'dark'
-	let theme: 'light' | 'dark' = 'light';
+	let theme = $state<'light' | 'dark'>('light');
 
 	function applyTheme(t: 'light' | 'dark') {
 		if (typeof document === 'undefined') return;
@@ -69,17 +70,6 @@
 	<div class="circuit-background"></div>
 	<div class="circuit-content">
 		{@render children()}
-		<button
-			class="theme-toggle"
-			type="button"
-			aria-label="切換深色/亮色主題"
-			on:click={toggleTheme}
-		>
-			{#if theme === 'dark'}
-				☀️
-			{:else}
-				🌙
-			{/if}
-		</button>
+		<!-- Theme toggle moved into the page-specific nav; kept theme init in layout -->
 	</div>
 </div>

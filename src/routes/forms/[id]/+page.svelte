@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
 	import { onMount } from 'svelte';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import { browser, dev } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
@@ -11,12 +12,11 @@
 		id: string;
 		order?: number;
 		pinned?: boolean;
-		profession: string;
-		isDriver: boolean;
-		isHelper: boolean;
 		checked?: boolean;
+		profession: string;
 		playerId: string;
 		gearScore: string | number;
+		role?: '' | 'leader' | 'helper';
 	}
 
 	interface LocalGroup {
@@ -39,8 +39,7 @@
 		order?: number;
 		pinned?: boolean;
 		profession: string;
-		isDriver: boolean;
-		isHelper: boolean;
+		role: '' | 'leader' | 'helper';
 		playerId: string;
 		gearScore: string | number;
 	};
@@ -104,8 +103,6 @@
 	// 將欄位對應為中文標籤，供變更紀錄使用（已本地化名稱）
 	const FIELD_LABELS: Record<string, string> = {
 		profession: '職業',
-		isDriver: '隊長',
-		isHelper: '幫打',
 		playerId: '玩家 ID',
 		gearScore: '裝備分數',
 		departureDate: '開團日期',
@@ -123,10 +120,9 @@
 					globalThis as unknown as { crypto?: { randomUUID?: () => string } }
 				).crypto?.randomUUID?.() ?? `m-${Date.now()}-${i}`,
 			profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
-			isDriver: false,
-			isHelper: false,
-			checked: false,
 			pinned: false,
+			checked: false,
+			role: '',
 			playerId: '',
 			gearScore: ''
 		}));
@@ -286,8 +282,6 @@
 					return {
 						...m,
 						profession,
-						isDriver: false,
-						isHelper: false,
 						playerId: '',
 						gearScore: ''
 					};
@@ -432,8 +426,9 @@
 									order: typeof mm.order === 'number' ? Number(mm.order) : 0,
 									pinned: !!mm.pinned,
 									profession: String(mm.profession ?? ''),
-									isDriver: !!mm.isDriver,
-									isHelper: !!mm.isHelper,
+									role:
+										(String(mm.role ?? '') as '' | 'leader' | 'helper') ||
+										(mm.isDriver ? 'leader' : mm.isHelper ? 'helper' : ''),
 									playerId: String(mm.playerId ?? ''),
 									gearScore: (mm.gearScore as string | number | undefined) ?? ''
 								});
@@ -920,8 +915,11 @@
 											id: m.id,
 											pinned: !!m.pinned,
 											profession: m.profession,
-											isDriver: !!m.isDriver,
-											isHelper: !!m.isHelper,
+											role: ((m as any).role ??
+												((m as any).isDriver ? 'leader' : (m as any).isHelper ? 'helper' : '')) as
+												| ''
+												| 'leader'
+												| 'helper',
 											playerId: m.playerId || '',
 											gearScore: m.gearScore || ''
 										})
@@ -965,8 +963,9 @@
 									id: String(mm.id ?? ''),
 									pinned: !!mm.pinned,
 									profession: String(mm.profession ?? ''),
-									isDriver: !!mm.isDriver,
-									isHelper: !!mm.isHelper,
+									role:
+										(String(mm.role ?? '') as '' | 'leader' | 'helper') ||
+										(mm.isDriver ? 'leader' : mm.isHelper ? 'helper' : ''),
 									playerId: String(mm.playerId ?? ''),
 									gearScore: (mm.gearScore as string | number | undefined) ?? ''
 								});
@@ -1375,8 +1374,7 @@
 						...m,
 						playerId: lm.playerId,
 						gearScore: lm.gearScore,
-						isDriver: lm.isDriver,
-						isHelper: lm.isHelper,
+						role: lm.role,
 						profession: lm.profession,
 						pinned: lm.pinned,
 						checked: lm.checked
@@ -1533,6 +1531,7 @@
 						type="text"
 						class="login-input"
 						placeholder="請輸入您的遊戲暱稱"
+						name="gameId"
 						value={gameId}
 						oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
 					/>
@@ -1544,6 +1543,7 @@
 						type="password"
 						class="login-input"
 						placeholder="選填，輸入後以管理員模式登入"
+						name="uid"
 						value={uid}
 						oninput={(e) => (uid = (e.target as HTMLInputElement).value)}
 					/>
@@ -1640,7 +1640,8 @@
 						</div>
 					{/if}
 				{:else}
-					<span class="online-badge">無其他使用者</span>
+					<!-- Visually hidden but kept in DOM for accessibility/debugging -->
+					<span class="online-badge sr-only">無其他使用者</span>
 				{/if}
 			</div>
 			<nav class="main-nav" aria-label="主要導覽">
@@ -1677,6 +1678,7 @@
 						{gameId || '訪客'}
 					</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
+					<ThemeToggle />
 				</div>
 			</nav>
 			<!-- 頂部區塊：使用者資訊已移至導覽列 -->
@@ -1831,24 +1833,31 @@
 											>
 												<span
 													class="member-name"
-													class:driver={m.isDriver}
-													class:helper={m.isHelper}>{m.playerId || '—'}</span
+													class:leader={m.role === 'leader'}
+													class:helper={m.role === 'helper'}
 												>
+													{m.playerId || '—'}
+												</span>
 											</div>
 										{/each}
 									</div>
 									<div class="group-summary-meta">
 										<div class="meta-row">
-											<span class="meta-item meta-level"
-												>等級: <strong>{group.level ?? '—'}</strong></span
+											<span class="meta-item meta-level label-inline"
+												><span class="label-text">等級:</span>
+												<strong class="value-text level-color">{group.level ?? '—'}</strong></span
 											>
-											<span class="meta-item meta-gear"
-												>裝分: <strong>{group.gearScoreReq ?? '—'}</strong></span
+											<span class="meta-item meta-gear label-inline"
+												><span class="label-text">裝分:</span>
+												<strong class="value-text gear-color">{group.gearScoreReq ?? '—'}</strong
+												></span
 											>
 										</div>
 
-										<span class="meta-item dungeon"
-											>副本: <strong>{group.dungeonName ?? '—'}</strong></span
+										<span class="meta-item dungeon label-inline"
+											><span class="label-text">副本:</span>
+											<strong class="value-text dungeon-color">{group.dungeonName ?? '—'}</strong
+											></span
 										>
 										<span class="meta-item datetime"
 											>{group.departureDate
@@ -1895,6 +1904,7 @@
 										class="departure-input departure-date"
 										type="date"
 										aria-label="開團日期"
+										name="departureDate"
 										value={getActiveGroup().departureDate ?? ''}
 										onchange={(e) =>
 											updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
@@ -1906,6 +1916,7 @@
 										class="departure-input departure-time"
 										type="time"
 										aria-label="開團時間"
+										name="departureTime"
 										value={getActiveGroup().departureTime ?? ''}
 										onchange={(e) =>
 											updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
@@ -1931,6 +1942,7 @@
 										type="text"
 										aria-label="副本名稱"
 										placeholder="副本名稱"
+										name="dungeonName"
 										value={getActiveGroup().dungeonName ?? ''}
 										oninput={(e) =>
 											updateGroupField(
@@ -1951,6 +1963,7 @@
 										style="width:5.5rem; max-width:100%"
 										aria-label="等級"
 										placeholder="等級"
+										name="level"
 										value={getActiveGroup().level ?? ''}
 										oninput={(e) => clampLevelInput(e, activeGroupId)}
 										disabled={isGroupReadOnly(getActiveGroup())}
@@ -1965,6 +1978,7 @@
 										type="text"
 										aria-label="裝分限制"
 										placeholder="裝分限制"
+										name="gearScoreReq"
 										value={getActiveGroup().gearScoreReq ?? ''}
 										oninput={(e) => clampGearScoreReqInput(e, activeGroupId)}
 										disabled={isGroupReadOnly(getActiveGroup())}
@@ -2011,38 +2025,41 @@
 											>
 												{index + 1}
 											</button>
-											<div class="role-badges">
-												<label class="badge-checkbox role-driver" class:active={member.isDriver}>
-													<input
-														type="checkbox"
-														checked={member.isDriver}
-														onchange={(e) =>
-															updateGroupField(
-																activeGroupId,
-																index,
-																'isDriver',
-																(e.target as HTMLInputElement).checked
-															)}
-														disabled={isGroupReadOnly(getActiveGroup())}
-													/>
-													<span>🚩 隊長</span>
-												</label>
-												<label class="badge-checkbox role-helper" class:active={member.isHelper}>
-													<input
-														type="checkbox"
-														checked={member.isHelper}
-														onchange={(e) =>
-															updateGroupField(
-																activeGroupId,
-																index,
-																'isHelper',
-																(e.target as HTMLInputElement).checked
-															)}
-														disabled={isGroupReadOnly(getActiveGroup())}
-													/>
-													<span>🤝 幫打</span>
-												</label>
-												<!-- inline check toggle next to helper badge -->
+											<div class="role-toggle" role="group" aria-label="成員角色切換">
+												<button
+													type="button"
+													class="role-toggle-btn leader"
+													aria-pressed={member.role === 'leader'}
+													title="切換為隊長"
+													onclick={() =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'role',
+															member.role === 'leader' ? '' : 'leader'
+														)}
+													disabled={isGroupReadOnly(getActiveGroup())}
+												>
+													🚩隊長
+												</button>
+												<button
+													type="button"
+													class="role-toggle-btn helper"
+													aria-pressed={member.role === 'helper'}
+													title="切換為幫打"
+													onclick={() =>
+														updateGroupField(
+															activeGroupId,
+															index,
+															'role',
+															member.role === 'helper' ? '' : 'helper'
+														)}
+													disabled={isGroupReadOnly(getActiveGroup())}
+												>
+													🤝幫打
+												</button>
+											</div>
+											<div class="member-actions">
 												<button
 													type="button"
 													class="member-check"
@@ -2050,6 +2067,7 @@
 													title="清點"
 													onclick={() =>
 														updateGroupField(activeGroupId, index, 'checked', !member.checked)}
+													disabled={isGroupReadOnly(getActiveGroup())}
 												>
 													{#if member.checked}
 														✓
@@ -2062,6 +2080,7 @@
 												<label>
 													<span class="label-text">職業</span>
 													<select
+														name={'member-' + index + '-profession'}
 														value={member.profession}
 														onchange={(e) =>
 															updateGroupField(
@@ -2090,6 +2109,7 @@
 													<input
 														type="text"
 														placeholder="遊戲暱稱"
+														name={'member-' + index + '-playerId'}
 														value={member.playerId}
 														oninput={(e) =>
 															updateGroupField(
@@ -2112,6 +2132,7 @@
 														min="0"
 														max="99999"
 														placeholder="0"
+														name={'member-' + index + '-gearScore'}
 														value={member.gearScore}
 														oninput={(e) => clampMemberGearScoreInput(e, activeGroupId, index)}
 														disabled={isGroupReadOnly(getActiveGroup())}

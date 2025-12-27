@@ -39,8 +39,8 @@
 	color: var(--text);
 }
 
-/* floating theme toggle button */
-.theme-toggle {
+/* floating theme toggle button — only apply when explicitly requested via `.floating` */
+.theme-toggle.floating {
 	position: fixed;
 	right: 1rem;
 	bottom: 1rem;
@@ -54,6 +54,6 @@
 	cursor: pointer;
 }
 
-.theme-toggle:focus {
+.theme-toggle.floating:focus {
 	outline: 2px solid color-mix(in srgb, var(--primary) 40%, var(--surface));
 }

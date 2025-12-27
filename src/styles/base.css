@@ -14,62 +14,169 @@
    Base styles and variables
 ========================================================= */
 :root {
-	--bg: #f0eeec;
-	--muted: #6b7280;
-	--surface: #ffffff;
-	--text: #0f172a;
-	--primary: #0ea5e9;
-	--border: #e5e7eb;
-	--card-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
-	--circuit-line: rgba(0, 0, 0, 0.08);
-	--circuit-dot: rgba(0, 0, 0, 0.12);
-	--circuit-dot-2: rgba(255, 255, 255, 0.12);
+	--bg: #e9e6de; /* 暖灰白，保持柔和 */
+	--surface: #f3f3f3;
+	--input-surface: #ffffff;
+	--btn-on-accent: #ffffff;
 
-	/* Brand / status accents (use in gradients) */
-	--accent-blue-start: #3b82f6;
-	--accent-blue-end: #2563eb;
-	--accent-green-start: #10b981;
-	--accent-green-end: #059669;
-	--accent-red-start: #ef4444;
-	--accent-red-end: #b91c1c;
-	--accent-yellow-start: #fbbf24;
-	--accent-yellow-end: #f59e0b;
-	--accent-pink-start: #fb7185;
-	--accent-pink-end: #f43f5e;
-	--accent-muted-text: #0f172a; /* default text on light accents */
+	--text: #1a202c; /* 比純黑柔和，但清晰 */
+	--muted: #4b5563;
+	--placeholder: #4b556366;
+
+	--primary: #2a7afa; /* 主藍，略鮮明 */
+	--border: #c3cbd4;
+
+	--card-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+
+	--overlay-backdrop: rgba(2, 6, 23, 0.5);
+	--overlay-backdrop-weak: rgba(15, 23, 42, 0.4);
+	--overlay-surface: rgba(255, 255, 255, 0.2);
+
+	--circuit-line: rgba(15, 23, 42, 0.1);
+	--circuit-dot: rgba(15, 23, 42, 0.15);
+	--circuit-dot-2: rgba(255, 255, 255, 0.22);
+
+	/* accent 顏色更鮮明 */
+	--accent-blue-start: #2f84fc;
+	--accent-blue-end: #1b6cf8;
+
+	--accent-green-start: #2ba131;
+	--accent-green-end: #3fc255;
+
+	--accent-red-start: #be2d2d;
+	--accent-red-end: #e63d58;
+
+	--accent-yellow-start: #ffd25a;
+	--accent-yellow-end: #ffb10f;
+
+	--accent-pink-start: #d31919;
+	--accent-pink-end: #e23d3d;
+
+	--accent-muted-text: #1a202c;
+
+	--tab-hover-bg: #e0e5f0;
+	--tab-hover-color: #1f2937;
+	--tab-active-bg: #2977ff;
+	--tab-active-color: #ffffff;
+
+	--field-label: #0061e9;
+	--field-value: #1a202c;
+
+	--team-color: #2977ff;
+	--level-color: #2fa665;
+	--gear-color: #ffb10f;
+	--dungeon-color: #e64778;
+
+	--team-bg: rgba(41, 119, 255, 0.12);
+	--level-bg: rgba(47, 166, 101, 0.12);
+	--gear-bg: rgba(255, 177, 15, 0.12);
+	--dungeon-bg: rgba(230, 71, 120, 0.12);
+
+	--name-bg: rgba(26, 32, 44, 0.06);
+	--name-text: #1a202c;
 }
 
-/* Dark theme variables (applied when [data-theme="dark"]) */
 :root[data-theme='dark'] {
-	--bg: #5f5f5f;
-	--muted: #5b5b6b;
-	--surface: #3e3a39;
-	--text: #ffffff;
-	--primary: #ffffff;
-	--border: #888888;
-	--card-shadow: 0 6px 18px rgba(255, 255, 255, 0.6);
+	--bg: #21242c; /* 明顯更深，不再偏灰 */
+	--surface: #1b1d24;
+	--input-surface: #1c2030;
+
+	--text: #e5e7eb;
+	--muted: #94a3b8;
+	--placeholder: #94a3b866;
+
+	--primary: #1f5492; /* 暗色主題主色要亮 */
+	--border: #3d414e;
+
+	--card-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+
+	/* Dark theme overlay adjustments: use light translucent backdrops */
+	--overlay-backdrop: rgba(255, 255, 255, 0.06);
+	--overlay-backdrop-weak: rgba(255, 255, 255, 0.04);
+	--overlay-surface: rgba(0, 0, 0, 0.05);
+
 	--circuit-line: rgba(255, 255, 255, 0.04);
 	--circuit-dot: rgba(255, 255, 255, 0.08);
-	--circuit-dot-2: rgba(255, 255, 255, 0.06);
+	--circuit-dot-2: rgba(255, 255, 255, 0.05);
 
-	/* Brand / status accents (dark theme variants) */
-	--accent-blue-start: #60a5fa;
-	--accent-blue-end: #3b82f6;
-	--accent-green-start: #34d399;
-	--accent-green-end: #10b981;
-	--accent-red-start: #fb7185;
-	--accent-red-end: #ef4444;
-	--accent-yellow-start: #f59e0b;
-	--accent-yellow-end: #fbbf24;
-	--accent-pink-start: #fb7185;
-	--accent-pink-end: #f43f5e;
-	--accent-muted-text: var(--text); /* ensure readable on dark accents */
+	--accent-blue-start: #1c41bb;
+	--accent-blue-end: #0f4192;
 
-	/* placeholder color for inputs (adapts to theme) */
-	--placeholder: #5b5b6b;
+	--accent-green-start: #105721;
+	--accent-green-end: #0a5f1d;
 
-	/* placeholder color for inputs (dark theme) */
-	--placeholder: #ffffff7a;
+	--accent-red-start: #a11919;
+	--accent-red-end: #681010;
+
+	--accent-yellow-start: #977e18;
+	--accent-yellow-end: #a17426;
+
+	--accent-pink-start: #be1c24;
+	--accent-pink-end: #741414;
+
+	--accent-muted-text: #020617;
+	--btn-on-accent: #020617;
+
+	--tab-hover-bg: rgba(255, 255, 255, 0.08);
+	--tab-hover-color: #e5e7eb;
+	--tab-active-bg: #93c5fd;
+	--tab-active-color: #ffffff;
+
+	--field-label: #cbd5f5;
+	--field-value: #e5e7eb;
+
+	--team-color: #93c5fd;
+	--level-color: #6ee7b7;
+	--gear-color: #fde68a;
+	--dungeon-color: #f9a8d4;
+
+	--team-bg: rgba(147, 197, 253, 0.14);
+	--level-bg: rgba(110, 231, 183, 0.14);
+	--gear-bg: rgba(253, 230, 138, 0.14);
+	--dungeon-bg: rgba(249, 168, 212, 0.14);
+
+	--name-bg: rgba(255, 255, 255, 0.06);
+	--name-text: #e5e7eb;
+}
+
+/* Field/label colors that adapt to theme */
+:root {
+	--field-label: var(--muted);
+	--field-value: var(--text);
+}
+
+:root[data-theme='dark'] {
+	--field-label: #cbd5e1; /* lighter muted for dark bg */
+	--field-value: var(--text);
+}
+
+/* Per-field color tokens (light theme defaults) */
+:root {
+	--team-color: var(--accent-blue-start);
+	--level-color: var(--accent-green-start);
+	--gear-color: var(--accent-yellow-start);
+	--dungeon-color: var(--accent-pink-start);
+
+	/* role colors */
+	--leader-color: var(--accent-pink-start);
+	--helper-color: var(--accent-green-start);
+	/* subtle background variants for badges */
+	--team-bg: rgba(59, 130, 246, 0.2);
+	--level-bg: rgba(16, 185, 129, 0.2);
+	--gear-bg: rgba(251, 191, 36, 0.2);
+	--dungeon-bg: rgba(251, 113, 133, 0.2);
+}
+
+/* Per-field color tokens (dark theme variants) */
+:root[data-theme='dark'] {
+	--team-color: var(--accent-blue-start);
+	--level-color: var(--accent-green-start);
+	--gear-color: var(--accent-yellow-start);
+	--dungeon-color: var(--accent-pink-start);
+	--team-bg: rgba(96, 165, 250, 0.2);
+	--level-bg: rgba(52, 211, 153, 0.2);
+	--gear-bg: rgba(243, 67, 67, 0.2);
+	--dungeon-bg: rgba(251, 113, 133, 0.2);
 }
 
 /* Use Noto Sans TC as the primary UI font with sensible fallbacks */
@@ -86,6 +193,26 @@
 	-moz-osx-font-smoothing: grayscale;
 	margin: 0;
 	padding: 0;
+}
+
+/* Smooth transitions when switching theme */
+:root,
+:root[data-theme='dark'] {
+	transition:
+		background-color 160ms linear,
+		color 160ms linear,
+		border-color 160ms linear;
+}
+:global(body) {
+	transition:
+		background-color 160ms linear,
+		color 160ms linear;
+}
+
+/* Debug helper: visible outline when dark theme is active.
+   Remove after verification. */
+:root[data-theme='dark'] :global(body) {
+	outline: 4px solid rgba(59, 130, 246, 0.18);
 }
 
 /* small utility tweaks used across components */
@@ -111,4 +238,312 @@
 	justify-content: center;
 	/* 文字置中作為保險，確保純文字/數字也會置中 */
 	text-align: center;
+}
+
+/* Labels used in group headers and field rows (e.g. 團隊 1, 等級, 裝分, 副本) */
+.group-label,
+.field-label {
+	color: var(--field-label);
+	font-size: 0.92rem;
+	line-height: 1.2;
+}
+
+.field-value,
+.departure-input.dungeon-name,
+.departure-input.level {
+	color: var(--field-value);
+}
+
+/* Small spacing helper for inline label:value pairs */
+.label-inline {
+	display: inline-flex;
+	gap: 0.5rem;
+	align-items: center;
+}
+
+/* Utility classes to apply per-field colors */
+.team-color {
+	color: var(--team-color);
+}
+.level-color {
+	color: var(--level-color);
+}
+.gear-color {
+	color: var(--gear-color);
+}
+.dungeon-color {
+	color: var(--dungeon-color);
+}
+
+/* Badge variants (useful for small pill UI next to labels) */
+.team-badge,
+.level-badge,
+.gear-badge,
+.dungeon-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.12rem 0.5rem;
+	border-radius: 9999px;
+	font-size: 0.82rem;
+	font-weight: 600;
+}
+.team-badge {
+	color: var(--team-color);
+	background: var(--team-bg);
+}
+.level-badge {
+	color: var(--level-color);
+	background: var(--level-bg);
+}
+.gear-badge {
+	color: var(--gear-color);
+	background: var(--gear-bg);
+}
+.dungeon-badge {
+	color: var(--dungeon-color);
+	background: var(--dungeon-bg);
+}
+
+/* =========================================================
+   Accent utility classes
+   - Reusable gradients, text colors, buttons and small card helpers
+   - These use the --accent-* and --*-bg tokens so they adapt to theme
+========================================================= */
+
+/* Gradient backgrounds */
+.accent-gradient-blue {
+	background: var(--accent-blue-start);
+	color: var(--btn-on-accent);
+}
+.accent-gradient-green {
+	background: var(--accent-green-start);
+	color: var(--btn-on-accent);
+}
+.accent-gradient-red {
+	background: var(--accent-red-start);
+	color: var(--btn-on-accent);
+}
+.accent-gradient-yellow {
+	background: var(--accent-yellow-start);
+	color: var(--text);
+}
+.accent-gradient-pink {
+	background: var(--accent-pink-start);
+	color: var(--btn-on-accent);
+}
+
+/* Accent text utilities */
+.text-accent-blue {
+	color: var(--accent-blue-start);
+}
+.text-accent-green {
+	color: var(--accent-green-start);
+}
+.text-accent-red {
+	color: var(--accent-red-start);
+}
+.text-accent-yellow {
+	color: var(--accent-yellow-start);
+}
+.text-accent-pink {
+	color: var(--accent-pink-start);
+}
+
+/* Primary button using blue accent gradient */
+.btn-primary {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.5rem 0.9rem;
+	border-radius: 0.5rem;
+	background: var(--accent-blue-start);
+	color: #fff;
+	border: none;
+	cursor: pointer;
+	transition:
+		transform 0.12s ease,
+		filter 0.12s ease;
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.08);
+}
+.btn-primary:hover {
+	filter: brightness(0.96);
+	transform: translateY(-1px);
+}
+.btn-primary:active {
+	transform: translateY(0);
+}
+
+/* Secondary button variant (subtle, uses muted text on accent-bg) */
+.btn-accent-outline {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.45rem 0.8rem;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: var(--accent-blue-start);
+	border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Small card / accent border helper */
+.card-accent {
+	border-left: 4px solid var(--accent-blue-start);
+	padding-left: 0.75rem;
+}
+
+/* Header/banner helper */
+.header-accent {
+	padding: 1.25rem 1.5rem;
+	border-radius: 0.75rem;
+	background: var(--accent-blue-start);
+	color: #fff;
+}
+
+/* Small utility badges that use accent bg tokens (light/dark-aware) */
+.accent-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.14rem 0.5rem;
+	border-radius: 9999px;
+	font-size: 0.82rem;
+	font-weight: 600;
+}
+.accent-pill.blue {
+	color: var(--team-color);
+	background: var(--team-bg);
+}
+.accent-pill.green {
+	color: var(--level-color);
+	background: var(--level-bg);
+}
+.accent-pill.yellow {
+	color: var(--gear-color);
+	background: var(--gear-bg);
+}
+.accent-pill.pink {
+	color: var(--dungeon-color);
+	background: var(--dungeon-bg);
+}
+
+/* =========================================================
+   Theme-aware helpers
+   - Use these classes to quickly theme components and text.
+   - Toggling is done by setting `document.documentElement.dataset.theme = 'dark'`.
+========================================================= */
+
+/* Generic themed container: background, text, border */
+.themed {
+	background: var(--surface);
+	color: var(--text);
+	border-color: var(--border);
+}
+
+/* Card style that adapts to theme */
+.themed-card {
+	background: var(--surface);
+	color: var(--text);
+	box-shadow: var(--card-shadow);
+	border: 1px solid var(--border);
+	border-radius: 0.5rem;
+}
+
+/* Subtle bordered element that adapts to the theme */
+.themed-border {
+	border: 1px solid var(--border);
+	color: var(--text);
+}
+
+/* Inverse variant for badges or text on accent backgrounds */
+.themed-inverse {
+	background: var(--text);
+	color: var(--surface);
+}
+
+/* Utility to make text use the field tokens (adapts to theme) */
+.label-text {
+	color: var(--field-label);
+}
+.value-text {
+	color: var(--field-value);
+}
+
+/* A small theme toggle button baseline (can be used in header/nav) */
+.theme-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.3rem 0.6rem;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: var(--text);
+	border: 1px solid var(--border);
+	cursor: pointer;
+}
+
+/* Accessibility utility: visually hide content but keep it in the DOM for screen readers */
+.sr-only {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	padding: 0 !important;
+	margin: -1px !important;
+	overflow: hidden !important;
+	clip: rect(0 0 0 0) !important;
+	white-space: nowrap !important;
+	border: 0 !important;
+}
+
+/* =========================================================
+   Form inputs: make all inputs/selects/textarea inside <form>
+   use the theme variables so they adapt to light/dark themes.
+   This provides a consistent appearance across the app.
+========================================================= */
+form input[type='text'],
+form input[type='number'],
+form input[type='email'],
+form input[type='password'],
+form select,
+form textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.55rem 0.75rem;
+	border: 2px solid var(--border);
+	border-radius: 8px;
+	font-size: 0.95rem;
+	background: var(--input-surface);
+	color: var(--text);
+	transition:
+		border-color 0.18s ease,
+		box-shadow 0.18s ease,
+		background-color 0.18s ease;
+}
+
+form input::placeholder,
+form textarea::placeholder,
+form select::placeholder {
+	color: var(--placeholder, rgba(15, 23, 42, 0.4));
+}
+
+form input[type='text']:hover,
+form input[type='number']:hover,
+form input[type='email']:hover,
+form input[type='password']:hover,
+form select:hover,
+form textarea:hover {
+	border-color: color-mix(in srgb, var(--accent-blue-start) 14%, var(--border));
+	background: var(--input-surface);
+}
+
+form input[type='text']:focus,
+form input[type='number']:focus,
+form input[type='email']:focus,
+form input[type='password']:focus,
+form select:focus,
+form textarea:focus {
+	outline: none;
+	border-color: var(--accent-blue-start);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 10%, transparent);
+	background: var(--input-surface);
 }

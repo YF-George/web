@@ -36,7 +36,11 @@
 	display: inline-block;
 	padding: 0.2rem 0.5rem;
 	border-radius: 8px;
-	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.08));
+	background: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--accent-blue-start) 12%, transparent),
+		color-mix(in srgb, var(--accent-blue-start) 8%, transparent)
+	);
 	color: var(--text);
 	font-weight: 700;
 }
@@ -53,18 +57,18 @@
 	color: var(--text);
 }
 .online-name {
-	background: rgba(15, 23, 42, 0.04);
+	background: var(--name-bg);
 	padding: 0.15rem 0.4rem;
 	border-radius: 6px;
 	font-weight: 600;
-	color: var(--text);
+	color: var(--name-text);
 }
 
 /* 管理員顯示為紅色文字或 chip */
 .online-name.admin {
-	background: rgba(255, 235, 238, 0.9);
-	color: #b91c1c;
-	border: 1px solid rgba(185, 28, 28, 0.08);
+	background: var(--admin-bg);
+	color: var(--admin-color);
+	border: 1px solid color-mix(in srgb, var(--admin-color) 8%, transparent);
 }
 
 /* 右側展開面板 */
@@ -85,7 +89,7 @@
 }
 .online-toggle:focus {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 12%, transparent);
 }
 .online-panel {
 	position: absolute;
@@ -116,7 +120,7 @@
 .online-modal-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(15, 23, 42, 0.4);
+	background: var(--overlay-backdrop-weak);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -157,7 +161,7 @@
 	border-radius: 8px;
 }
 .kick-btn {
-	background: #ef4444;
+	background-image: linear-gradient(135deg, var(--accent-red-start), var(--accent-red-end));
 	color: var(--surface);
 	border: none;
 	padding: 0.35rem 0.6rem;
@@ -233,6 +237,11 @@
 	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
+/* Ensure theme toggle sits comfortably next to logout */
+.nav-actions .theme-toggle {
+	margin-left: 0.5rem;
+}
+
 /* =========================================================
    Tabs / Group list (團隊標籤)
    - 用在表單頁上方的分頁式團隊標籤：`團隊 1 ×`、`+ 添加團隊`
@@ -241,15 +250,15 @@
 .tab.add {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.4rem;
+	gap: 0.3rem;
 	cursor: pointer;
-	padding: 0.45rem 0.5rem; /* 保留高度，縮小水平內距 */
+	padding: 0.28rem 0.5rem; /* smaller vertical padding */
 	border-radius: 8px;
 	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
-	color: var(--surface);
+	color: var(--btn-on-accent);
 	font-weight: 600;
 	border: none;
-	font-size: 0.95rem;
+	font-size: 0.9rem;
 }
 
 /* 外層大框：包覆整個標籤列（如 團隊 1 × 團隊 2 × + 添加團隊）
@@ -264,25 +273,39 @@
 	box-shadow: var(--card-shadow);
 }
 
+/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll */
+.tabs {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
 .tab {
-	padding: 0.45rem 0.5rem; /* 保留原垂直內距，僅減少水平內距 */
+	white-space: nowrap; /* prevent label wrap */
+}
+
+.tab {
+	padding: 0.28rem 0.5rem; /* smaller vertical padding for compact tabs */
 	border-radius: 8px;
 	font-family: var(--font-sans);
 	font-weight: 700;
-	font-size: 0.95rem;
+	font-size: 0.9rem;
 	line-height: 1;
 	min-width: auto;
 }
 
 .tab:hover {
-	background: #f9fafb;
-	color: #1f2937;
+	background: var(--tab-hover-bg);
+	color: var(--tab-hover-color);
 }
 
 .tab.active {
-	background: #2563eb;
-	color: #fff;
-	border-color: #2563eb;
+	background: var(--tab-active-bg);
+	color: var(--tab-active-color);
+	border-color: var(--tab-active-bg);
 }
 
 .tab-close {
@@ -292,46 +315,47 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 1.2rem;
-	height: 1.2rem;
+	width: 1.1rem;
+	height: 1.1rem;
 	border-radius: 4px;
 	background: transparent;
 	color: inherit;
 	cursor: pointer;
+	font-size: 0.85rem;
 }
 
 .tab-close:hover {
-	color: #dc2626;
+	color: var(--accent-red-start);
 }
 
 .tab-add {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.4rem;
+	gap: 0.3rem;
 	cursor: pointer;
-	padding: 0.45rem 0.5rem; /* 保留高度，縮小水平內距 */
+	padding: 0.28rem 0.5rem; /* smaller vertical padding */
 	border-radius: 8px;
-	background: linear-gradient(135deg, #3e91c9);
-	color: #fff;
+	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
+	color: var(--btn-on-accent);
 	font-weight: 600;
 	border: none;
-	font-size: 0.95rem;
+	font-size: 0.9rem;
 }
 
 /* Back button shown in the tabs area (← 回上頁) */
 .tabs .btn {
-	padding: 0.45rem 0.6rem; /* match tab height, slightly wider for icon */
+	padding: 0.28rem 0.5rem; /* compact to match tabs */
 	border-radius: 8px;
 	background: transparent;
 	border: 1px solid rgba(15, 23, 42, 0.06);
-	color: #0f172a;
+	color: var(--text);
 	font-weight: 700;
 	display: inline-flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: 0.4rem;
 }
 .tabs .btn:hover {
-	background: #f8fafc;
+	background: var(--tab-hover-bg);
 }
 
 /* Make the back button visually distinct when used in dialogs or other areas retain .btn defaults elsewhere */
@@ -345,42 +369,51 @@
    - 已出團: 紅色 (done)
    行為：非選取 tab 半透明；被選取的 tab 使用飽和漸層色 */
 .tab {
-	opacity: 0.65;
+	opacity: 0.75;
 	transition:
 		background 160ms ease,
 		opacity 160ms ease;
+	display: inline-flex; /* ensure consistent box model and vertical centering */
+	align-items: center;
+	gap: 0.3rem; /* reduced spacing between icon/text */
+	padding: 0.28rem 0.6rem; /* compact inner padding */
+	min-height: 32px; /* reduced height for compact tabs */
+	box-sizing: border-box;
+	border-radius: 8px; /* keep pill-ish shape */
+	line-height: 1;
+	font-size: 0.9rem;
 }
 .tab.active {
 	opacity: 1;
 }
 
 .tab.recruit {
-	background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
-	color: #0f172a;
+	background: var(--team-bg);
+	color: var(--text);
 }
 .tab.recruit.active {
-	background: linear-gradient(135deg, #3f6ed3);
-	color: #fff;
+	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
+	color: var(--tab-active-color);
 	border-color: transparent;
 }
 
 .tab.ready {
-	background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.06));
-	color: #0f172a;
+	background: var(--level-bg);
+	color: var(--text);
 }
 .tab.ready.active {
-	background: linear-gradient(135deg, #16bb6e);
-	color: #fff;
+	background: linear-gradient(135deg, var(--accent-green-start), var(--accent-green-end));
+	color: var(--tab-active-color);
 	border-color: transparent;
 }
 
 .tab.done {
-	background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.06));
-	color: #0f172a;
+	background: var(--gear-bg);
+	color: var(--text);
 }
 .tab.done.active {
-	background: linear-gradient(135deg, #e94747);
-	color: #fff;
+	background: linear-gradient(135deg, var(--accent-red-start), var(--accent-red-end));
+	color: var(--tab-active-color);
 	border-color: transparent;
 }
 
@@ -391,24 +424,26 @@
 	border-radius: 8px;
 	font-weight: 600;
 	max-width: 12rem;
+	box-sizing: border-box; /* ensure borders don't affect computed height */
 }
 .status-select.recruit {
-	border: 1px solid #2563eb;
-	background: rgba(37, 99, 235, 0.04);
-	color: #0f172a;
+	border: 1px solid var(--accent-blue-start);
+	background: var(--team-bg);
+	color: var(--text);
 }
 .status-select.ready {
-	border: 1px solid #10b981;
-	background: rgba(16, 185, 129, 0.04);
-	color: #0f172a;
+	border: 1px solid var(--accent-green-start);
+	background: var(--level-bg);
+	color: var(--text);
 }
 .status-select.done {
-	border: 1px solid #ef4444;
-	background: rgba(239, 68, 68, 0.04);
-	color: #0f172a;
+	border: 1px solid var(--accent-pink-end);
+	background: var(--gear-bg);
+	color: var(--text);
 }
 .status-select {
 	display: inline-flex;
 	align-items: center;
-	min-height: 40px;
+	min-height: 32px;
+	line-height: 1; /* keep consistent text rendering */
 }

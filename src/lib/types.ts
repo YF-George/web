@@ -4,9 +4,8 @@ export interface GroupMember {
 	order?: number; // 用於 UI 排序，可重排
 	pinned?: boolean;
 	checked?: boolean;
+	role?: '' | 'leader' | 'helper';
 	profession: string;
-	isDriver: boolean;
-	isHelper: boolean;
 	playerId: string;
 	gearScore: string | number;
 }
@@ -61,9 +60,8 @@ function parseMember(m: unknown): GroupMember {
 		order: typeof r.order === 'number' ? (r.order as number) : undefined,
 		pinned: !!r.pinned,
 		checked: !!r.checked,
+		role: typeof r.role === 'string' ? (r.role as '' | 'leader' | 'helper') : '',
 		profession: safeString(r.profession) || '輸出',
-		isDriver: !!r.isDriver,
-		isHelper: !!r.isHelper,
 		playerId: safeString(r.playerId),
 		gearScore: (r.gearScore as string | number | undefined) ?? ''
 	};

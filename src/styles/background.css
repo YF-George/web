@@ -1,33 +1,20 @@
-/*
-  background.css
-  中文註解：
-  - 功能：定義全站共用的 circuit pattern 背景樣式，並確保該背景固定在視窗且位於內容下方。
-  - 主要 selectors：`.circuit-wrapper`（版面包覆容器）、`.circuit-background`（實際背景圖層）、`.circuit-content`（用於把內容放到背景之上）。
-  - 注意事項：背景使用 `position: fixed` 與 `z-index: -1`，若頁面有使用 fixed/absolute 元件或 overlay，請留意 z-index 衝突。
-*/
-
 .circuit-wrapper {
 	min-height: 100vh;
 	position: relative;
 }
 
 .circuit-background {
-	/* make background sit beneath all page content */
-	/* Use !important to avoid accidental overrides from component styles */
 	position: fixed !important;
 	inset: 0 !important;
 	z-index: -1 !important;
 	pointer-events: none;
 	background-color: var(--bg);
-	/* subtle circuit pattern */
 	background-image:
 		repeating-linear-gradient(0deg, transparent 0 19px, var(--circuit-line) 19px 20px),
 		repeating-linear-gradient(90deg, transparent 0 19px, var(--circuit-line) 19px 20px),
 		radial-gradient(circle at 20px 20px, var(--circuit-dot) 2px, transparent 2px),
 		radial-gradient(circle at 40px 40px, var(--circuit-dot-2) 2px, transparent 2px);
 	background-size: 40px 40px;
-	/* Note: removed translateZ() here to avoid creating a containing block
-		 which can interfere with `position: sticky` in some browsers. */
 }
 
 .circuit-content {
