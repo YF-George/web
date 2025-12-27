@@ -25,6 +25,21 @@ login.css
 	box-shadow: var(--card-shadow);
 }
 
+/* Ensure login text follows theme colors */
+.login-card,
+.login-container,
+.login-header h1,
+.login-header,
+.login-subtitle,
+.login-form,
+.login-input {
+	color: var(--text);
+}
+
+.login-input::placeholder {
+	color: var(--muted);
+}
+
 .login-header {
 	display: flex;
 	flex-direction: column;
