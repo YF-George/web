@@ -49,8 +49,12 @@
 
 /* - 等級欄使用等寬字體讓數字對齊更穩定，並加粗以利可讀性 */
 .departure-input.level {
-	font-family:
-		ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace;
+	/* 使用專案變數，統一字型來源 */
+	font-family: var(--font-sans);
 	font-weight: 700;
 	letter-spacing: 0.02em;
+	/* 若父元素為 flex/inline-flex，這會讓內容水平置中 */
+	justify-content: center;
+	/* 文字置中作為保險，確保純文字/數字也會置中 */
+	text-align: center;
 }

@@ -19,6 +19,265 @@
 	gap: 1rem;
 }
 
+/* Summary grid showing each group as a card (6 per row) */
+.group-summary-grid {
+	display: grid;
+	/* make cards responsive and prevent them from stretching too wide */
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 1rem;
+	margin-bottom: 1rem;
+	justify-content: center; /* center cards when there are few columns */
+}
+
+/* wrapper to position summary-specific actions (e.g. immediate clear) */
+.group-summary-wrapper {
+	/* stack button above grid without overlapping: place children in column
+	   so the button occupies its own row and the grid flows below it */
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.summary-clear {
+	align-self: flex-end; /* push to the right */
+	z-index: 10; /* keep above cards but below modal */
+	padding: 0.5rem 0.65rem;
+	border-radius: 8px;
+	background: linear-gradient(135deg, #ef4444, #b91c1c);
+	color: #fff;
+	font-weight: 700;
+	border: none;
+	cursor: pointer;
+	display: inline-flex; /* center text vertically */
+	align-items: center;
+	justify-content: center;
+	line-height: 1; /* ensure consistent centering */
+}
+.summary-clear:hover {
+	transform: translateY(-1px);
+}
+
+/* Title above the summary grid */
+.group-summary-title {
+	font-family: var(--font-sans);
+	font-weight: 900; /* 加粗 */
+	font-size: 1.25rem; /* 放大 */
+	color: #0f172a;
+	display: flex;
+	align-items: baseline;
+	gap: 0.5rem;
+}
+.group-summary-title .summary-count {
+	font-weight: 600;
+	color: #6b7280;
+	font-size: 0.95rem;
+}
+
+/* header row for summary: title on left, actions on right */
+.group-summary-header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+.group-summary-card {
+	background: white;
+	border: 2px solid #e5e7eb;
+	border-radius: 12px;
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	cursor: pointer;
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease,
+		border-color 120ms ease;
+	max-width: 360px; /* prevent an individual card from becoming too wide */
+	width: 100%;
+}
+.group-summary-card:focus,
+.group-summary-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 10px 30px rgba(2, 6, 23, 0.06);
+	border-color: #d1d5db;
+	outline: none;
+}
+
+/* Status-aware summary card coloring to match tabs */
+.group-summary-card.recruit {
+	background: linear-gradient(180deg, rgba(37, 99, 235, 0.06), rgba(37, 99, 235, 0.03));
+	border-color: rgba(37, 99, 235, 0.12);
+}
+.group-summary-card.recruit .group-summary-header {
+	color: #0f172a;
+}
+.group-summary-card.recruit:focus,
+.group-summary-card.recruit:hover {
+	/* Use a subtler tint on hover/focus to avoid overly saturated fill */
+	background: linear-gradient(180deg, rgba(37, 99, 235, 0.1), rgba(37, 99, 235, 0.06));
+	border-color: rgba(37, 99, 235, 0.18);
+}
+.group-summary-card.ready {
+	background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.03));
+	border-color: rgba(16, 185, 129, 0.12);
+}
+.group-summary-card.ready:focus,
+.group-summary-card.ready:hover {
+	background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.06));
+	border-color: rgba(16, 185, 129, 0.18);
+}
+.group-summary-card.done {
+	background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.03));
+	border-color: rgba(239, 68, 68, 0.12);
+}
+.group-summary-card.done:focus,
+.group-summary-card.done:hover {
+	background: linear-gradient(180deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.06));
+	border-color: rgba(239, 68, 68, 0.18);
+}
+.group-summary-header {
+	font-weight: 700;
+	font-family: var(--font-sans);
+}
+.group-summary-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.5rem;
+}
+.status-pill {
+	padding: 0.18rem 0.5rem;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 700;
+}
+.status-pill.recruit {
+	background: rgba(37, 99, 235, 0.12);
+	color: #0f172a;
+}
+.status-pill.ready {
+	background: rgba(16, 185, 129, 0.12);
+	color: #0f172a;
+}
+.status-pill.done {
+	background: rgba(239, 68, 68, 0.12);
+	color: #0f172a;
+}
+.group-summary-members {
+	/* show members in a compact 2-column grid inside the summary card
+	   Arrange items column-first so the left column contains members 1-5
+	   and the right column contains members 6-10 (indices 0-4 and 5-9). */
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-template-rows: repeat(5, auto); /* force 5 rows per column */
+	grid-auto-flow: column; /* fill down columns first */
+	gap: 0.4rem;
+}
+.member-chip {
+	display: flex;
+	align-items: center;
+	justify-content: space-between; /* name left, pill right */
+	gap: 0.5rem;
+	padding: 0.28rem 0.5rem; /* adjust for two columns */
+	border-radius: 8px;
+	background: rgba(15, 23, 42, 0.04);
+	color: #0f172a;
+	font-size: 0.9rem;
+	width: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+/* small inline role marker appended after member name */
+.member-chip .member-name {
+	display: inline-block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0; /* allow flex child to shrink inside flex container */
+	flex: 1 1 auto;
+}
+
+/* style member name when labelled as driver/helper */
+.member-name.driver {
+	color: #b91c1c; /* red-ish for driver */
+	font-weight: 700;
+}
+.member-name.helper {
+	color: #0f766e; /* green-ish for helper */
+	font-weight: 700;
+}
+
+/* Profession-specific chip colors */
+.member-chip.prof-tank {
+	background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(245, 158, 11, 0.03));
+	border-left: 4px solid #f59e0b;
+}
+.member-chip.prof-healer {
+	background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.03));
+	border-left: 4px solid #10b981;
+}
+.member-chip.prof-dps {
+	background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.03));
+	border-left: 4px solid #3b82f6;
+}
+
+.group-summary-meta {
+	display: flex;
+	gap: 0.6rem;
+	align-items: center;
+	margin-top: 0.5rem;
+	font-size: 0.85rem;
+	color: #374151;
+	flex-wrap: wrap; /* allow meta items to wrap to next line */
+}
+.group-summary-meta .meta-item strong {
+	color: #0f172a;
+}
+.group-summary-card {
+	min-height: 8rem; /* ensure consistent card height */
+}
+
+.group-summary-meta .meta-item.dungeon {
+	/* allow dungeon name to take available space but wrap if needed */
+	flex: 1 1 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.group-summary-meta .meta-item {
+	/* give each meta item a sensible minimum so they don't all squeeze */
+	min-width: 6.5rem;
+}
+
+/* Row wrapper for small groups of meta items (e.g. 等級 + 裝分) */
+.group-summary-meta .meta-row {
+	display: flex;
+	gap: 0.5rem;
+	align-items: center;
+	flex-wrap: nowrap; /* keep level+gear on one line */
+}
+.group-summary-meta .meta-item.meta-level,
+.group-summary-meta .meta-item.meta-gear {
+	flex: 0 0 auto;
+}
+
+.group-summary-meta .meta-item.datetime {
+	color: #6b7280;
+	font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+	.group-summary-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+@media (max-width: 768px) {
+	.group-summary-grid {
+		grid-template-columns: repeat(1, 1fr);
+	}
+}
+
 .member-card {
 	background: white;
 	border: 2px solid #e5e7eb;
@@ -27,6 +286,41 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
+}
+
+/* Inline check toggle to sit next to helper badge */
+.member-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 2rem;
+	height: 2rem;
+	padding: 0 0.5rem;
+	border-radius: 8px;
+	background: rgba(15, 23, 42, 0.04);
+	border: 1px solid rgba(15, 23, 42, 0.06);
+	cursor: pointer;
+	font-weight: 800;
+	color: #0f172a;
+	transition:
+		background 120ms ease,
+		transform 120ms ease;
+	margin-left: auto; /* push to the far right of the role-badges row */
+}
+.member-check:hover {
+	background: rgba(15, 23, 42, 0.08);
+	transform: translateY(-1px);
+}
+.member-check[aria-pressed='true'] {
+	background: linear-gradient(135deg, #10b981, #059669);
+	color: #fff;
+	border-color: transparent;
+	box-shadow: 0 8px 20px rgba(5, 150, 105, 0.12);
+}
+
+/* Form panel container should be positioned so overlays can anchor to it */
+.form-panel {
+	position: relative;
 }
 
 /* Member header (號碼與角色徽章) */
@@ -42,13 +336,37 @@
 	background: linear-gradient(135deg, #3b82f6, #2563eb);
 	border-radius: 8px;
 	flex-shrink: 0;
+	/* 置中數字：水平 + 垂直置中，移除額外 padding */
+	display: inline-flex;
 	justify-content: center;
 	align-items: center;
+	vertical-align: middle;
+	padding: 0;
 	width: 2rem;
 	height: 2rem;
+	line-height: 1;
+	text-align: center;
 	font-size: 0.95rem;
 	font-weight: 700;
-	display: flex;
+	font-family: var(--font-sans);
+	transition:
+		transform 120ms ease,
+		box-shadow 120ms ease,
+		background 160ms ease;
+}
+
+/* 鎖定狀態：醒目顏色與陰影，並略微放大 */
+.member-number.pinned {
+	background: linear-gradient(135deg, #ef4444, #dc2626); /* 紅色系，表示已鎖定 */
+	box-shadow: 0 8px 22px rgba(220, 38, 38, 0.18);
+	transform: scale(1.04);
+}
+
+/* 當按鈕不可操作時的樣式（disabled） */
+.member-number.disabled,
+.member-number:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
 }
 .role-badges {
 	/* Always arrange role badges horizontally (隊長 / 幫打) */
@@ -57,6 +375,7 @@
 	flex-wrap: nowrap; /* force side-by-side */
 	gap: 0.5rem;
 	align-items: center;
+	flex: 1 1 auto; /* allow badges container to grow and fill available space */
 }
 .badge-checkbox {
 	cursor: pointer;
@@ -121,13 +440,21 @@
 	gap: 0.4rem;
 }
 
-/* Active / selected state for role badges */
-.badge-checkbox.active,
-.badge-checkbox[aria-pressed='true'] {
+/* Active / selected state for role badges: role-specific colors */
+.badge-checkbox.role-helper.active,
+.badge-checkbox.role-helper[aria-pressed='true'] {
 	color: #fff;
-	background: linear-gradient(135deg, #10b981, #059669);
+	background: linear-gradient(135deg, #10b981, #059669); /* green */
 	border-color: transparent;
 	box-shadow: 0 6px 18px rgba(5, 150, 105, 0.12);
+	transform: translateY(-1px);
+}
+.badge-checkbox.role-driver.active,
+.badge-checkbox.role-driver[aria-pressed='true'] {
+	color: #fff;
+	background: linear-gradient(135deg, #ef4444, #b91c1c); /* red */
+	border-color: transparent;
+	box-shadow: 0 6px 18px rgba(185, 28, 28, 0.12);
 	transform: translateY(-1px);
 }
 
@@ -178,8 +505,12 @@
 /* 表單 — 出發/時間/副本 欄位樣式 (departure-*) */
 .departure-time-row {
 	display: flex;
-	align-items: flex-start;
+	/* 水平與垂直置中整行內容 */
+	justify-content: center;
+	align-items: center;
 	gap: 1rem;
+	/* 將整列高度統一為至少 56px（含內距），以符合欄位高度與觸控目標 */
+	min-height: 56px;
 	padding: 0.25rem 0 0.75rem;
 	width: auto; /* 讓整列寬度由內容決定 */
 	flex-wrap: wrap; /* 若畫面太窄則換行 */
@@ -202,7 +533,7 @@
 	min-height: 40px; /* 與 .weekday 保持一致的高度 */
 	line-height: 1;
 	padding: 0.5rem 0.75rem;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+	font-family: var(--font-sans);
 	font-size: 0.95rem;
 	transition: all 0.12s;
 }
@@ -223,11 +554,13 @@
 	align-items: center;
 	justify-content: center; /* 水平置中 */
 	width: auto;
+	font-family: var(--font-sans);
 }
 
 /* 星期顯示 (日記/出發日期用) */
 .weekday {
 	display: inline-flex;
+	font-family: var(--font-sans);
 	align-items: center;
 	justify-content: center;
 	gap: 0.5rem;
@@ -257,4 +590,150 @@
 	color: #fff;
 	background: linear-gradient(135deg, #fb7185, #f43f5e);
 	border-color: transparent;
+}
+
+/* 裝分限制 的樣式：讓 placeholder/輸入文字顯得較醒目 */
+.departure-input.gear-score-req::placeholder {
+	/* 與其他輸入一致的外觀（不特別加粗） */
+	color: inherit;
+}
+.departure-input.gear-score-req {
+	/* 與等級欄位使用相同外觀：統一字型、加粗與字距 */
+	font-family: var(--font-sans);
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-align: center; /* 與其他 departure-input 保持水平置中 */
+	justify-content: center;
+	/* 寬度調整：剛好容納 5 位數字（加上內距），使用 ch 為單位以符合字元寬度 */
+	width: calc(5ch + 1.5rem);
+	max-width: 100%;
+	/* 文字顏色使用全域的 muted 變數，與等級欄的淺色風格相符 */
+	color: var(--muted);
+}
+
+/* Profession select colored states */
+.profession-select {
+	padding: 0.45rem 0.6rem;
+	border-radius: 8px;
+	border: 2px solid #e5e7eb;
+	background: #fafafa;
+	color: #0f172a;
+	min-width: 110px;
+	box-sizing: border-box;
+	transition:
+		background 160ms ease,
+		color 160ms ease,
+		border-color 120ms ease;
+	font-family: var(--font-sans);
+}
+.profession-select:focus {
+	outline: none;
+	border-color: #3b82f6;
+	background: #fff;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.06);
+}
+.profession-select.profession-tank {
+	/* 坦克：橘色系（淺色背景） */
+	background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.06));
+	color: #0f172a;
+}
+.profession-select.profession-healer {
+	background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.06));
+	color: #0f172a;
+}
+.profession-select.profession-dps {
+	/* 輸出：藍色系（淺色背景） */
+	background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.06));
+	color: #0f172a;
+}
+
+/* 備註區：橫向展開並佔滿父容器 */
+.notes-area {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	margin-top: 0.75rem;
+}
+.notes-label {
+	display: block;
+	width: 100%;
+}
+.notes-input {
+	width: 100%;
+	min-height: 120px; /* 提供足夠空間顯示多行備註 */
+	resize: vertical;
+	padding: 0.75rem;
+	border: 2px solid #e5e7eb;
+	border-radius: 8px;
+	background: #fafafa;
+	box-sizing: border-box;
+	font-family: var(--font-sans);
+	font-size: 0.95rem;
+	line-height: 1.4;
+}
+.notes-input {
+	width: 100%;
+	/* 預設顯示高度等於一行文字（含內距），可垂直調整 */
+	height: 2.8rem; /* 約等於 1 行文字 + padding（可視為 single-line appearance） */
+	min-height: 2.8rem;
+	resize: vertical;
+	padding: 0.5rem 0.75rem;
+	border: 2px solid #e5e7eb;
+	border-radius: 8px;
+	background: #fafafa;
+	box-sizing: border-box;
+	font-family: var(--font-sans);
+	font-size: 0.95rem;
+	line-height: 1.4;
+}
+.notes-input:focus {
+	outline: none;
+	border-color: #3b82f6;
+	background: #fff;
+	box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.06);
+}
+
+/* Modal / confirmation dialog styles */
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(2, 6, 23, 0.5); /* dark translucent backdrop */
+	z-index: 100; /* above nav (nav z-index:60) */
+	padding: 1.25rem; /* ensure spacing on small viewports */
+}
+.modal {
+	background: #ffffff;
+	border-radius: 12px;
+	padding: 1.25rem 1.5rem;
+	max-width: 720px;
+	width: 100%;
+	box-shadow: 0 20px 60px rgba(2, 6, 23, 0.25);
+	border: 1px solid rgba(15, 23, 42, 0.04);
+	box-sizing: border-box;
+}
+.modal h3 {
+	margin: 0 0 0.5rem 0;
+	font-size: 1.125rem;
+}
+.modal p {
+	margin: 0 0 1rem 0;
+	color: #374151;
+}
+.modal-actions {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: flex-end;
+	margin-top: 0.5rem;
+}
+
+/* readonly overlay to visually block interaction on read-only groups */
+.readonly-overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(255, 255, 255, 0.2);
+	z-index: 50; /* below modal but above content */
+	pointer-events: none; /* allow underlying focus handling if needed */
 }

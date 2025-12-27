@@ -26,9 +26,8 @@
 		radial-gradient(circle at 20px 20px, rgba(55, 65, 81, 0.12) 2px, transparent 2px),
 		radial-gradient(circle at 40px 40px, rgba(55, 65, 81, 0.12) 2px, transparent 2px);
 	background-size: 40px 40px;
-	/* ensure the background repaints correctly on some browsers */
-	transform: translateZ(0);
-	-webkit-transform: translateZ(0);
+	/* Note: removed translateZ() here to avoid creating a containing block
+		 which can interfere with `position: sticky` in some browsers. */
 }
 
 .circuit-content {

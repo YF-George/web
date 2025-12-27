@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import { browser, dev } from '$app/environment';
 	import { enterRoom } from '$lib/room';
 	import { page } from '$app/stores';
@@ -14,6 +14,7 @@
 		profession: string;
 		isDriver: boolean;
 		isHelper: boolean;
+		checked?: boolean;
 		playerId: string;
 		gearScore: string | number;
 	}
@@ -93,7 +94,7 @@
 
 	// ---- 常數與共用工具 ----
 	const GROUP_SIZE = 10;
-	const MAX_CHANGELOG_ENTRIES = 100; // 最多保留 100 筆記錄
+	const MAX_CHANGELOG_ENTRIES = 300; // 最多保留 300 筆記錄
 	const PENDING_UPDATE_DELAY = 3000; // 等待 3 秒合併多次輸入，減少紀錄雜訊
 
 	// 將欄位對應為中文標籤，供變更紀錄使用（已本地化名稱）
@@ -120,6 +121,7 @@
 			profession: i === 0 ? '坦克' : i === 1 ? '治療' : '輸出',
 			isDriver: false,
 			isHelper: false,
+			checked: false,
 			pinned: false,
 			playerId: '',
 			gearScore: ''
@@ -157,7 +159,7 @@
 
 	// ---- 連線與狀態 ----
 	// Liveblocks 連線物件與在線名單
-	let others: Array<unknown> = [];
+
 	let leave: (() => void) | null = null;
 	let roomName = 'my-room';
 	let room: ReturnType<typeof enterRoom>['room'] | null = null;
@@ -171,8 +173,14 @@
 	let isAdmin = false;
 	let isLoading = false;
 
+	// 目前線上（others）數量
+	let othersCount = 0;
+
 	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
+
+	// 是否顯示團隊總表（summary grid），預設顯示
+	let showGroupGrid = true;
 
 	// 自製刪除確認對話框 state
 	let pendingDeleteGroupId: string | null = null;
@@ -224,7 +232,7 @@
 		return next.getTime() - now.getTime();
 	}
 
-	async function performWeeklyRefresh() {
+	async function performWeeklyRefresh(clearLogs: boolean = false) {
 		// behaviour: clear all form contents for every group while keeping the same
 		// number of groups and preserving any member with pinned === true
 		if (!storageInitialized || !storageRoot) {
@@ -236,17 +244,35 @@
 		try {
 			// build cleared groups locally: keep id/order/changeLog but clear fields
 			const cleared = groups.map((g) => {
-				const clearedMembers = (g.members || []).map((m) => {
+				const clearedMembers = (g.members || []).map((m, i) => {
 					if (m.pinned) return m; // preserve pinned member entirely
+					// default professions after clear: 1 => 坦克, 2 & 6 => 治療, others => 輸出
+					const profession = i === 0 ? '坦克' : i === 1 || i === 5 ? '治療' : '輸出';
 					return {
 						...m,
-						profession: '',
+						profession,
 						isDriver: false,
 						isHelper: false,
 						playerId: '',
 						gearScore: ''
 					};
 				});
+
+				// when called as an immediate clear, also clear existing changeLog entries
+				if (clearLogs) {
+					return {
+						...g,
+						members: clearedMembers,
+						departureDate: '',
+						departureTime: '',
+						dungeonName: '',
+						level: '',
+						gearScoreReq: '',
+						contentType: '',
+						status: '招募中',
+						changeLog: []
+					} as LocalGroup;
+				}
 
 				// append an automated changelog entry indicating weekly clear
 				const autoLog: ChangeLog = {
@@ -453,80 +479,116 @@
 	}
 
 	// 加入房間、串接 presence 與 storage 訂閱，並在卸載時清理
-	onMount(async () => {
-		// 依路由參數設定房間名稱
-		const unsubPage = page.subscribe((p) => {
-			let rn = (p.params?.id as string) || 'my-room';
-			if (dev) rn = `${rn}-dev`;
-			roomName = rn;
-		});
+	onMount(() => {
+		// keep synchronous onMount so we can return a cleanup function
+		let unsubPage: () => void = () => {};
+		let unsubscribeOthers: () => void = () => {};
+		let unsubscribeStorage: () => void = () => {};
 
-		const connection = enterRoom(roomName);
-		room = connection.room;
-		leave = connection.leave;
+		// perform async init inside an IIFE
+		(async () => {
+			// 依路由參數設定房間名稱
+			unsubPage = page.subscribe((p) => {
+				let rn = (p.params?.id as string) || 'my-room';
+				if (dev) rn = `${rn}-dev`;
+				roomName = rn;
+			});
 
-		// others 訂閱
-		const unsubscribeOthers = room.subscribe('others', (updatedOthers) => {
-			others = updatedOthers as Array<unknown>;
-		});
+			const connection = enterRoom(roomName);
+			room = connection.room;
+			leave = connection.leave;
 
-		try {
-			// 儲存根節點包含共享的團隊清單
-			const { root } = await room.getStorage();
-			storageRoot = root as unknown as LiveObject<LiveRoot>;
-			storageInitialized = true;
-
-			// 當儲存就緒時啟動週期性自動刷新排程
-			scheduleWeeklyRefresh();
-
-			// 若尚未存在 groups，初始化一次
-			try {
-				const existing = storageRoot.get('groups');
-				if (!existing) {
-					storageRoot.set(
-						'groups',
-						new LiveList<LiveObject<LiveGroup>>(
-							groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
-						)
-					);
-				}
-			} catch (e) {
-				console.error('storage groups init error', e);
-			}
-
-			// Liveblocks Storage -> 本地 state，保持雙向同步
-			// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
-			const unsubscribeStorage = room.subscribe(storageRoot!, () => {
+			// others 訂閱：更新線上使用者計數顯示
+			unsubscribeOthers = room.subscribe('others', (o) => {
 				try {
-					if (localWriteInProgress) return; // 忽略來自本地寫入觸發的事件
-					const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
-					const groupsPlain = immutable.groups;
-					if (groupsPlain) {
-						const parsed = parseRemoteGroups(groupsPlain as unknown);
-						if (parsed.length > 0) {
-							groups = mergeRemoteWithLocal(parsed);
-						}
-						if (!groups.find((g) => g.id === activeGroupId)) {
-							activeGroupId = groups[0]?.id || initialGroup.id;
-						}
+					let n = 0;
+					if (Array.isArray(o)) n = o.length;
+					else if (o && typeof (o as { size?: unknown }).size === 'number')
+						n = (o as { size?: number }).size ?? 0;
+					else if (o && typeof o === 'object')
+						n = Object.keys(o as unknown as Record<string, unknown>).length;
+					// others typically excludes self; directly assign
+					othersCount = n;
+				} catch (e) {
+					console.error('others subscribe error', e);
+				}
+			});
+
+			try {
+				// 儲存根節點包含共享的團隊清單
+				const { root } = await room.getStorage();
+				storageRoot = root as unknown as LiveObject<LiveRoot>;
+				storageInitialized = true;
+
+				// 當儲存就緒時啟動週期性自動刷新排程
+				scheduleWeeklyRefresh();
+
+				// 若尚未存在 groups，初始化一次
+				try {
+					const existing = storageRoot.get('groups');
+					if (!existing) {
+						storageRoot.set(
+							'groups',
+							new LiveList<LiveObject<LiveGroup>>(
+								groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
+							)
+						);
 					}
 				} catch (e) {
-					console.error('storage subscribe error', e);
+					console.error('storage groups init error', e);
 				}
-			});
 
-			onDestroy(() => {
+				// Liveblocks Storage -> 本地 state，保持雙向同步
+				// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
+				unsubscribeStorage = room.subscribe(storageRoot!, () => {
+					try {
+						if (localWriteInProgress) return; // 忽略來自本地寫入觸發的事件
+						const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+						const groupsPlain = immutable.groups;
+						if (groupsPlain) {
+							const parsed = parseRemoteGroups(groupsPlain as unknown);
+							if (parsed.length > 0) {
+								groups = mergeRemoteWithLocal(parsed);
+							}
+							if (!groups.find((g) => g.id === activeGroupId)) {
+								activeGroupId = groups[0]?.id || initialGroup.id;
+							}
+						}
+					} catch (e) {
+						console.error('storage subscribe error', e);
+					}
+				});
+			} catch (e) {
+				console.error('init storage error', e);
+			}
+		})();
+
+		// cleanup function returned synchronously from onMount
+		return () => {
+			try {
 				unsubscribeOthers();
+			} catch (e) {
+				void e;
+			}
+			try {
 				unsubscribeStorage();
+			} catch (e) {
+				void e;
+			}
+			try {
 				unsubPage();
+			} catch (e) {
+				void e;
+			}
+			try {
 				if (leave) leave();
-				// clear weekly timers
-				if (weeklyRefreshTimeout) clearTimeout(weeklyRefreshTimeout);
-				if (weeklyRefreshInterval) clearInterval(weeklyRefreshInterval);
-			});
-		} catch (e) {
-			console.error('init storage error', e);
-		}
+			} catch (e) {
+				void e;
+			}
+			// clear weekly timers
+			if (weeklyRefreshTimeout) clearTimeout(weeklyRefreshTimeout);
+			if (weeklyRefreshInterval) clearInterval(weeklyRefreshInterval);
+		};
 	});
 
 	// 將緩衝中的編輯寫入 changelog，避免每次輸入都產生紀錄
@@ -1005,7 +1067,8 @@
 						isDriver: lm.isDriver,
 						isHelper: lm.isHelper,
 						profession: lm.profession,
-						pinned: lm.pinned
+						pinned: lm.pinned,
+						checked: lm.checked
 					} as typeof m;
 				}
 				return m;
@@ -1111,6 +1174,24 @@
 		if (Number.isNaN(dt.getTime())) return -1;
 		return dt.getDay();
 	}
+
+	// 將 YYYY-MM-DD 與 HH:MM 格式化為更友善的顯示（例如："12/27 20:00" 或僅日期 "12/27"）
+	function formatDateTime(dateStr?: string, timeStr?: string) {
+		const d = (dateStr || '').trim();
+		if (!d) return '';
+		const parts = d.split('-');
+		if (parts.length < 3) return '';
+		const year = Number(parts[0]);
+		const month = Number(parts[1]);
+		const day = Number(parts[2]);
+		if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return '';
+		const mm = String(month).padStart(2, '0');
+		const dd = String(day).padStart(2, '0');
+		const datePart = `${mm}/${dd}`;
+		const timePart = (timeStr || '').trim();
+		if (timePart) return `${datePart} ${timePart}`;
+		return datePart;
+	}
 </script>
 
 <svelte:head>
@@ -1173,7 +1254,11 @@
 	<div class="container">
 		<header>
 			<div class="online-status" aria-live="polite" title="其他線上使用者數量">
-				其他線上人數: {others.length}
+				{#if othersCount > 0}
+					<span class="online-badge">在線：{othersCount}</span>
+				{:else}
+					<span class="online-badge">無其他使用者</span>
+				{/if}
 			</div>
 			<nav class="main-nav" aria-label="主要導覽">
 				<ul class="nav-list">
@@ -1183,10 +1268,10 @@
 							class:active={activeTab === 'forms'}
 							onclick={() => (activeTab = 'forms')}
 						>
-							填寫報名表
+							填寫表單
 						</button>
 					</li>
-					{#if isAdmin}
+					{#if isAdmin && !showGroupGrid}
 						<li class="nav-item">
 							<button
 								class="nav-link"
@@ -1199,22 +1284,43 @@
 					{/if}
 				</ul>
 				<div class="nav-actions">
-					<span class="nav-user" title={gameId || '訪客'}>{gameId || '訪客'}</span>
-					<span class="nav-role">{isAdmin ? '管理員' : '一般玩家'}</span>
-					{#if isAdmin}
-						<button
-							class="nav-clear"
-							onclick={() => (pendingImmediateClear = true)}
-							title="管理員：立即執行週期性清空"
-						>
-							立即清空
-						</button>
-					{/if}
+					<span
+						class="nav-user"
+						title={gameId || '訪客'}
+						class:admin={isAdmin}
+						class:player={!isAdmin}
+						aria-label={isAdmin ? '管理員' : '一般玩家'}
+					>
+						{gameId || '訪客'}
+					</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
 				</div>
 			</nav>
 			<!-- 頂部區塊：使用者資訊已移至導覽列 -->
 		</header>
+
+		{#if pendingImmediateClear}
+			<div class="modal-backdrop" role="dialog" aria-modal="true">
+				<div class="modal">
+					<h3>確認立即清空</h3>
+					<p>
+						您確定要立即執行「立即清空」操作嗎？此操作會清空所有團隊的欄位，但會保留已鎖定的成員。
+					</p>
+					<div class="modal-actions">
+						<button
+							class="btn btn-danger"
+							onclick={() => {
+								performWeeklyRefresh(true);
+								pendingImmediateClear = false;
+							}}
+						>
+							執行清空
+						</button>
+						<button class="btn" onclick={() => (pendingImmediateClear = false)}>取消</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		{#if status}
 			<div class="toolbar">
@@ -1230,50 +1336,150 @@
 
 		<section class="group-section">
 			<div class="tabs-wrapper">
-				<div class="tabs-header">
+				<div>
 					<div class="tabs">
-						{#each groups as group, idx (group.id)}
-							<button
-								class="tab"
-								class:active={activeGroupId === group.id}
-								class:recruit={group.status === '招募中'}
-								class:ready={group.status === '已準備'}
-								class:done={group.status === '已出團'}
-								onclick={() => (activeGroupId = group.id)}
-							>
-								團隊 {idx + 1}
-								{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
-									{#if group.status !== '已準備'}
-										<span
-											class="tab-close"
-											onclick={(e) => {
-												e.stopPropagation();
-												// open custom confirmation dialog
-												pendingDeleteGroupId = group.id;
-											}}
-											onkeydown={(e) => {
-												if (e.key === 'Enter' || e.key === ' ') {
-													e.preventDefault();
+						{#if !showGroupGrid}
+							{#each groups as group, idx (group.id)}
+								<button
+									class="tab"
+									class:active={activeGroupId === group.id}
+									class:recruit={group.status === '招募中'}
+									class:ready={group.status === '已準備'}
+									class:done={group.status === '已出團'}
+									onclick={() => (activeGroupId = group.id)}
+								>
+									團隊 {idx + 1}
+									{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
+										{#if group.status !== '已準備'}
+											<span
+												class="tab-close"
+												onclick={(e) => {
 													e.stopPropagation();
+													// open custom confirmation dialog
 													pendingDeleteGroupId = group.id;
-												}
-											}}
-											role="button"
-											tabindex="0"
-											title="刪除此團隊"
-										>
-											×
-										</span>
+												}}
+												onkeydown={(e) => {
+													if (e.key === 'Enter' || e.key === ' ') {
+														e.preventDefault();
+														e.stopPropagation();
+														pendingDeleteGroupId = group.id;
+													}
+												}}
+												role="button"
+												tabindex="0"
+												title="刪除此團隊"
+											>
+												×
+											</span>
+										{/if}
 									{/if}
-								{/if}
-							</button>
-						{/each}
-						{#if activeTab === 'forms' && isAdmin && groups.length < 12}
-							<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
+								</button>
+							{/each}
+							{#if activeTab === 'forms' && isAdmin && groups.length < 12}
+								<button class="tab-add" onclick={addNewGroup} title="添加新團隊">+ 添加團隊</button>
+							{/if}
 						{/if}
+						<div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;">
+							{#if activeTab === 'forms' && !showGroupGrid}
+								<button class="btn" onclick={() => (showGroupGrid = true)} aria-label="回上頁"
+									>← 回上頁</button
+								>
+							{/if}
+						</div>
 					</div>
 				</div>
-				{#if activeTab === 'forms'}
+				{#if showGroupGrid}
+					<div class="group-summary-wrapper">
+						<div class="group-summary-header-row">
+							<div class="group-summary-title">
+								團隊總覽 <span class="summary-count">({groups.length})</span>
+							</div>
+							{#if isAdmin}
+								<button
+									class="summary-clear"
+									title="管理員：立即執行週期性清空"
+									onclick={() => (pendingImmediateClear = true)}
+								>
+									立即清空
+								</button>
+							{/if}
+						</div>
+						<div class="group-summary-grid" role="list">
+							{#each groups as group (group.id)}
+								<div
+									class="group-summary-card"
+									class:recruit={group.status === '招募中'}
+									class:ready={group.status === '已準備'}
+									class:done={group.status === '已出團'}
+									tabindex="0"
+									role="button"
+									onclick={() => {
+										activeGroupId = group.id;
+										showGroupGrid = false;
+										activeTab = 'forms';
+									}}
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault();
+											activeGroupId = group.id;
+											showGroupGrid = false;
+											activeTab = 'forms';
+										}
+									}}
+								>
+									<div class="group-summary-top">
+										<div class="group-summary-header">團隊 {groups.indexOf(group) + 1}</div>
+										<div
+											class="status-pill"
+											class:recruit={group.status === '招募中'}
+											class:ready={group.status === '已準備'}
+											class:done={group.status === '已出團'}
+										>
+											{group.status}
+										</div>
+									</div>
+									<div class="group-summary-members">
+										{#each group.members.slice(0, 10) as m (m.id)}
+											<div
+												class="member-chip"
+												class:prof-tank={m.profession === '坦克'}
+												class:prof-healer={m.profession === '治療'}
+												class:prof-dps={m.profession === '輸出'}
+											>
+												<span
+													class="member-name"
+													class:driver={m.isDriver}
+													class:helper={m.isHelper}>{m.playerId || '—'}</span
+												>
+											</div>
+										{/each}
+									</div>
+									<div class="group-summary-meta">
+										<div class="meta-row">
+											<span class="meta-item meta-level"
+												>等級: <strong>{group.level ?? '—'}</strong></span
+											>
+											<span class="meta-item meta-gear"
+												>裝分: <strong>{group.gearScoreReq ?? '—'}</strong></span
+											>
+										</div>
+
+										<span class="meta-item dungeon"
+											>副本: <strong>{group.dungeonName ?? '—'}</strong></span
+										>
+										<span class="meta-item datetime"
+											>{group.departureDate
+												? formatDateTime(group.departureDate, group.departureTime)
+												: '—'}</span
+										>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+
+				{#if activeTab === 'forms' && !showGroupGrid}
 					{#if getActiveGroup()}
 						<div class="form-panel">
 							{#if pendingDeleteGroupId}
@@ -1296,30 +1502,7 @@
 								</div>
 							{/if}
 
-							{#if pendingImmediateClear}
-								<div class="modal-backdrop" role="dialog" aria-modal="true">
-									<div class="modal">
-										<h3>確認立即清空</h3>
-										<p>
-											您確定要立即執行「立即清空」操作嗎？此操作會清空所有團隊的欄位，但會保留已鎖定的成員。
-										</p>
-										<div class="modal-actions">
-											<button
-												class="btn btn-danger"
-												onclick={() => {
-													performWeeklyRefresh();
-													pendingImmediateClear = false;
-												}}
-											>
-												執行清空
-											</button>
-											<button class="btn" onclick={() => (pendingImmediateClear = false)}
-												>取消</button
-											>
-										</div>
-									</div>
-								</div>
-							{/if}
+							<!-- moved pendingImmediateClear modal to top-level so it shows in summary view too -->
 							{#if isGroupReadOnly(getActiveGroup())}
 								<div class="readonly-overlay" aria-hidden="true"></div>
 							{/if}
@@ -1446,7 +1629,7 @@
 												{index + 1}
 											</button>
 											<div class="role-badges">
-												<label class="badge-checkbox" class:active={member.isDriver}>
+												<label class="badge-checkbox role-driver" class:active={member.isDriver}>
 													<input
 														type="checkbox"
 														checked={member.isDriver}
@@ -1461,7 +1644,7 @@
 													/>
 													<span>🚩 隊長</span>
 												</label>
-												<label class="badge-checkbox" class:active={member.isHelper}>
+												<label class="badge-checkbox role-helper" class:active={member.isHelper}>
 													<input
 														type="checkbox"
 														checked={member.isHelper}
@@ -1476,6 +1659,19 @@
 													/>
 													<span>🤝 幫打</span>
 												</label>
+												<!-- inline check toggle next to helper badge -->
+												<button
+													type="button"
+													class="member-check"
+													aria-pressed={!!member.checked}
+													title="清點"
+													onclick={() =>
+														updateGroupField(activeGroupId, index, 'checked', !member.checked)}
+												>
+													{#if member.checked}
+														✓
+													{/if}
+												</button>
 											</div>
 										</div>
 										<div class="form-row">
@@ -1567,7 +1763,7 @@
 							</div>
 						</div>
 					{/if}
-				{:else if activeTab === 'history' && isAdmin}
+				{:else if activeTab === 'history' && isAdmin && !showGroupGrid}
 					<section class="history-section">
 						<div class="history-header-wrapper">
 							<div class="history-stats">
@@ -1584,7 +1780,6 @@
 						{#if (getActiveGroup()?.changeLog ?? []).length === 0}
 							<div class="history-empty">
 								<p class="history-note">✨ 此團隊尚無更改紀錄</p>
-								<p class="history-hint">在「填寫表單」頁面對此團隊進行操作都會記錄在此</p>
 							</div>
 						{:else}
 							<div class="history-list">
@@ -1618,7 +1813,7 @@
 							</div>
 						{/if}
 					</section>
-				{:else if activeTab === 'history' && !isAdmin}
+				{:else if activeTab === 'history' && !isAdmin && !showGroupGrid}
 					<section class="history-section">
 						<div class="history-empty">
 							<p class="history-note">🔒 權限不足</p>

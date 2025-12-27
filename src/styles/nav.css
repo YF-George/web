@@ -32,10 +32,21 @@
 	gap: 0.5rem;
 	align-items: center;
 }
+.online-badge {
+	display: inline-block;
+	padding: 0.2rem 0.5rem;
+	border-radius: 8px;
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.08));
+	color: #0f172a;
+	font-weight: 700;
+}
 .nav-user {
-	display: flex;
+	display: inline-flex;
 	gap: 0.5rem;
 	align-items: center;
+	padding: 0.25rem 0.5rem;
+	border-radius: 8px;
+	font-weight: 700;
 }
 .nav-role {
 	/* 使用者角色標籤（例如：一般玩家 / 管理員）
@@ -46,6 +57,45 @@
 	border-radius: 8px;
 	padding: 0.25rem 0.5rem;
 	font-weight: 600;
+}
+
+/* Role-specific name backgrounds */
+.nav-user.player {
+	background: linear-gradient(135deg, #2563eb, #1e40af);
+	color: #fff;
+}
+.nav-user.admin {
+	background: linear-gradient(135deg, #fbbf24, #f59e0b);
+	color: #0f172a;
+}
+
+/* Logout button visuals */
+.nav-logout {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.35rem 0.6rem;
+	border-radius: 8px;
+	background: transparent;
+	border: 1px solid rgba(15, 23, 42, 0.08);
+	color: #0f172a;
+	font-weight: 700;
+	cursor: pointer;
+	transition:
+		background 160ms ease,
+		transform 120ms ease,
+		box-shadow 160ms ease;
+}
+.nav-logout:hover {
+	background: #f8fafc;
+	transform: translateY(-1px);
+}
+.nav-logout:active {
+	transform: translateY(0);
+}
+.nav-logout:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 /* =========================================================
@@ -73,7 +123,7 @@
 .tabs-wrapper {
 	width: 100%;
 	display: block;
-	padding: 0.8rem;
+	padding: 1rem;
 	border-radius: 12px;
 	border: 1px solid #e5e7eb;
 	background: rgba(248, 248, 248, 0.904);
@@ -81,8 +131,13 @@
 }
 
 .tab {
-	padding: 0.45rem 0.85rem;
+	padding: 0.45rem 0.5rem; /* 保留原垂直內距，僅減少水平內距 */
 	border-radius: 8px;
+	font-family: var(--font-sans);
+	font-weight: 700;
+	font-size: 0.95rem;
+	line-height: 1;
+	min-width: auto;
 }
 
 .tab:hover {
@@ -118,14 +173,36 @@
 .tab-add {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: 0.4rem;
 	cursor: pointer;
-	padding: 0.45rem 0.75rem;
+	padding: 0.45rem 0.5rem; /* 保留高度，縮小水平內距 */
 	border-radius: 8px;
 	background: linear-gradient(135deg, #3e91c9);
 	color: #fff;
 	font-weight: 600;
 	border: none;
+	font-size: 0.95rem;
+}
+
+/* Back button shown in the tabs area (← 回上頁) */
+.tabs .btn {
+	padding: 0.45rem 0.6rem; /* match tab height, slightly wider for icon */
+	border-radius: 8px;
+	background: transparent;
+	border: 1px solid rgba(15, 23, 42, 0.06);
+	color: #0f172a;
+	font-weight: 700;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+.tabs .btn:hover {
+	background: #f8fafc;
+}
+
+/* Make the back button visually distinct when used in dialogs or other areas retain .btn defaults elsewhere */
+.tabs .btn[aria-label='回上頁'] {
+	box-shadow: none;
 }
 
 /* Status-aware tab coloring
