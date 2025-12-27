@@ -40,6 +40,136 @@
 	color: #0f172a;
 	font-weight: 700;
 }
+
+.online-names {
+	margin: 0.35rem 0 0 0;
+	padding: 0;
+	list-style: none;
+	display: flex;
+	gap: 0.4rem;
+	flex-wrap: wrap;
+	align-items: center;
+	font-size: 0.85rem;
+	color: #0f172a;
+}
+.online-name {
+	background: rgba(15, 23, 42, 0.04);
+	padding: 0.15rem 0.4rem;
+	border-radius: 6px;
+	font-weight: 600;
+}
+
+/* 管理員顯示為紅色文字或 chip */
+.online-name.admin {
+	background: rgba(255, 235, 238, 0.9);
+	color: #b91c1c;
+	border: 1px solid rgba(185, 28, 28, 0.08);
+}
+
+/* 右側展開面板 */
+.online-status {
+	position: relative; /* for absolute panel */
+	margin-right: 1.5rem; /* 與導覽列保持距離，增加間距 */
+}
+.online-toggle {
+	display: inline-flex;
+	gap: 0.5rem;
+	align-items: center;
+	padding: 0.2rem 0.5rem;
+	border-radius: 8px;
+	background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.08));
+	border: none;
+	cursor: pointer;
+	font-weight: 700;
+}
+.online-toggle:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.online-panel {
+	position: absolute;
+	left: calc(100% + 8px);
+	top: 50%;
+	transform: translateY(-50%);
+	background: white;
+	border: 1px solid #e5e7eb;
+	padding: 0.5rem;
+	border-radius: 8px;
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+	display: none;
+	min-width: 220px;
+	z-index: 50;
+}
+.online-panel.open {
+	display: block;
+}
+.chev {
+	font-size: 0.95rem;
+	opacity: 0.85;
+}
+.online-count {
+	margin-right: 0.25rem;
+}
+
+/* Modal styles for centered online players dialog */
+.online-modal-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(2, 6, 23, 0.45);
+	z-index: 1200;
+}
+.online-modal {
+	background: #fff;
+	border-radius: 10px;
+	width: 90%;
+	max-width: 480px;
+	box-shadow: 0 12px 40px rgba(2, 6, 23, 0.28);
+	overflow: hidden;
+}
+.online-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0.8rem 1rem;
+	border-bottom: 1px solid #eef2f7;
+}
+.online-modal-body {
+	padding: 0.75rem 1rem;
+}
+.online-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.online-list-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+.modal-close {
+	background: transparent;
+	border: none;
+	font-size: 1rem;
+	cursor: pointer;
+}
+.kick-btn {
+	background: #ef4444;
+	color: white;
+	border: none;
+	padding: 0.25rem 0.5rem;
+	border-radius: 6px;
+	cursor: pointer;
+}
+.kick-btn:hover {
+	filter: brightness(0.95);
+}
 .nav-user {
 	display: inline-flex;
 	gap: 0.5rem;
