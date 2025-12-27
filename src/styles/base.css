@@ -14,34 +14,63 @@
    Base styles and variables
 ========================================================= */
 :root {
-	--bg: #f5f7fb;
+	--bg: #f0eeec;
 	--muted: #6b7280;
 	--surface: #ffffff;
 	--text: #0f172a;
 	--primary: #0ea5e9;
 	--border: #e5e7eb;
 	--card-shadow: 0 6px 18px rgba(16, 24, 40, 0.04);
+	--circuit-line: rgba(0, 0, 0, 0.08);
+	--circuit-dot: rgba(0, 0, 0, 0.12);
+	--circuit-dot-2: rgba(255, 255, 255, 0.12);
 
-	/* circuit background pattern colors (light theme) */
-	--circuit-line: rgba(255, 255, 255, 0.08);
-	--circuit-dot: rgba(255, 255, 255, 0.12);
-	--circuit-dot-2: rgba(55, 65, 81, 0.12);
+	/* semantic/accent colors */
+	--accent-recruit: #2563eb;
+	--accent-recruit-100: rgba(37, 99, 235, 0.12);
+	--accent-recruit-60: rgba(37, 99, 235, 0.06);
+	--accent-recruit-18: rgba(37, 99, 235, 0.18);
+
+	--accent-ready: #10b981;
+	--accent-ready-100: rgba(16, 185, 129, 0.12);
+	--accent-ready-60: rgba(16, 185, 129, 0.06);
+	--accent-ready-18: rgba(16, 185, 129, 0.18);
+
+	--accent-done: #ef4444;
+	--accent-done-100: rgba(239, 68, 68, 0.12);
+	--accent-done-60: rgba(239, 68, 68, 0.06);
+	--accent-done-18: rgba(239, 68, 68, 0.18);
+
+	--accent-tank-start: #f59e0b;
+	--accent-tank-end: rgba(245, 158, 11, 0.03);
+	--accent-healer-start: #10b981;
+	--accent-healer-end: rgba(16, 185, 129, 0.03);
+	--accent-dps-start: #3b82f6;
+	--accent-dps-end: rgba(59, 130, 246, 0.03);
+
+	/* chip / inline element backgrounds */
+	--chip-bg: rgba(15, 23, 42, 0.04);
+	--chip-bg-hover: rgba(15, 23, 42, 0.08);
 }
 
 /* Dark theme variables (applied when [data-theme="dark"]) */
 :root[data-theme='dark'] {
-	--bg: #0b1220;
-	--muted: #9ca3af;
-	--surface: #071226;
-	--text: #e6eef8;
-	--primary: #60a5fa;
-	--border: #1f2937;
-	--card-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
-
-	/* circuit background pattern colors (dark theme) */
+	--bg: #5f5f5f;
+	--muted: #5b5b6b;
+	--surface: #3e3a39;
+	--text: #ffffff;
+	--primary: #ffffff;
+	--border: #888888;
+	--card-shadow: 0 6px 18px rgba(255, 255, 255, 0.6);
 	--circuit-line: rgba(255, 255, 255, 0.04);
 	--circuit-dot: rgba(255, 255, 255, 0.08);
 	--circuit-dot-2: rgba(255, 255, 255, 0.06);
+
+	/* placeholder color for inputs (adapts to theme) */
+	--placeholder: #5b5b6b;
+
+	/* placeholder color for inputs (dark theme) */
+	--placeholder: #ffffff7a;
 }
 
 /* Use Noto Sans TC as the primary UI font with sensible fallbacks */
