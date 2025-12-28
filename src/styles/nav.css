@@ -290,14 +290,17 @@
 	box-shadow: var(--card-shadow);
 }
 
-/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll */
+/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll
+   Disable momentum/smooth scrolling to avoid unwanted "滑動" when toggling views. */
 .tabs {
 	display: flex;
 	gap: 0.5rem;
 	align-items: center;
 	flex-wrap: nowrap;
 	overflow-x: auto;
-	-webkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: auto; /* avoid iOS-like momentum on click */
+	scroll-behavior: auto; /* ensure focus/navigation jumps don't animate */
+	scroll-snap-type: none; /* disable any snap behavior */
 }
 
 .tab {
