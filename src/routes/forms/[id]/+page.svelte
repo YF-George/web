@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
 	import { onMount } from 'svelte';
+	import { connectWS } from '$lib/wsClient';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import ProfessionSelect from '$lib/ProfessionSelect.svelte';
 	import { browser, dev } from '$app/environment';
@@ -214,6 +215,9 @@
 	// 本頁的分頁狀態（填寫/紀錄）
 	let activeTab: 'forms' | 'history' = 'forms';
 
+	// Feature toggle: use our custom WS server instead of Liveblocks when env set.
+	const USE_WS = typeof import.meta !== 'undefined' && import.meta.env?.VITE_USE_WS === '1';
+
 	// 是否顯示團隊總表（summary grid），預設顯示
 	let showGroupGrid = true;
 
@@ -287,7 +291,8 @@
 						...m,
 						profession,
 						playerId: '',
-						gearScore: ''
+						gearScore: '',
+						role: '' // ensure role (隊長/幫打) is cleared for non-pinned members
 					};
 				});
 
@@ -528,9 +533,70 @@
 				roomName = rn;
 			});
 
-			const connection = enterRoom(roomName);
-			room = connection.room;
-			leave = connection.leave;
+			import type { WSClient } from '$lib/wsClient';
+
+			let wsClient: WSClient | null = null;
+			if (USE_WS) {
+				// connect to custom WS server (MVP)
+				wsClient = connectWS({
+					room: roomName,
+					url: import.meta.env?.VITE_WS_ENDPOINT || 'ws://localhost:6789',
+					userId: gameId || undefined
+				});
+				// handle init/update/presence messages
+				const off = wsClient.on((m: unknown) => {
+					if (typeof m === 'object' && m !== null && 'type' in (m as Record<string, unknown>)) {
+						const msg = m as Record<string, unknown>;
+						const t = String(msg.type);
+						if (t === 'init' || t === 'update') {
+							const st = msg.state as Record<string, unknown> | undefined;
+							if (st && Array.isArray(st.groups)) {
+								try {
+									groups = st.groups as unknown as typeof groups;
+									if (!groups.find((g) => g.id === activeGroupId)) {
+										activeGroupId = groups[0]?.id || activeGroupId;
+									}
+								} catch (err) {
+									console.error('ws apply state error', err);
+								}
+							}
+						} else if (t === 'presence') {
+							const pres = msg.presence as unknown[] | undefined;
+							othersCount = pres ? pres.length : 0;
+							othersList = (pres || []).map((p) => {
+								const pr = p as Record<string, unknown>;
+								const id = (pr.userId ?? pr.id) as string | undefined;
+								return { id: id || '', name: id || '' };
+							});
+						}
+					}
+				});
+				// expose a leave function that closes ws
+				leave = () => {
+					off();
+					wsClient.close();
+					wsClient = null;
+				};
+				// fetch initial state if any
+				const initial = wsClient.getState?.();
+				if (initial && initial.groups) {
+					groups = initial.groups;
+				}
+			} else {
+				const connection = enterRoom(roomName);
+				room = connection.room;
+				leave = connection.leave;
+
+				// others 訂閱：更新線上使用者計數顯示
+				unsubscribeOthers = room.subscribe('others', (o) => {
+					try {
+						const count = (o || []).length;
+						othersCount = count;
+					} catch (e) {
+						void e;
+					}
+				});
+			}
 
 			// others 訂閱：更新線上使用者計數顯示
 			unsubscribeOthers = room.subscribe('others', (o) => {
