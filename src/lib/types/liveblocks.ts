@@ -1,5 +1,5 @@
 import { LiveList, LiveObject } from '@liveblocks/client';
-import type { LocalGroup } from '$lib/types';
+import type { LocalGroup } from '$lib/types/types';
 
 // Clean single implementation. Return LiveObject<any> to avoid tight LSON constraints
 export function toLiveGroup(g: LocalGroup) {

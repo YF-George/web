@@ -1,12 +1,13 @@
 ﻿<script lang="ts">
 	import { onMount } from 'svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
+	import ProfessionSelect from '$lib/ProfessionSelect.svelte';
 	import { browser, dev } from '$app/environment';
-	import { enterRoom } from '$lib/room';
+	import { enterRoom } from '$lib/types/room';
 	import { page } from '$app/stores';
 	import { LiveObject, LiveList } from '@liveblocks/client';
-	import { parseRemoteGroups } from '$lib/types';
-	import { toLiveGroup } from '$lib/liveblocks';
+	import { parseRemoteGroups } from '$lib/types/types';
+	import { toLiveGroup } from '$lib/types/liveblocks';
 
 	interface GroupMember {
 		id: string;
@@ -103,7 +104,7 @@
 	// 將欄位對應為中文標籤，供變更紀錄使用（已本地化名稱）
 	const FIELD_LABELS: Record<string, string> = {
 		profession: '職業',
-		playerId: '玩家 ID',
+		playerId: '玩家暱稱',
 		gearScore: '裝備分數',
 		departureDate: '開團日期',
 		departureTime: '開團時間',
@@ -177,7 +178,10 @@
 
 	// 目前線上（others）數量
 	let othersCount = 0;
+
+	// example binding for new ProfessionSelect usage (removed)
 	// 線上使用者清單（含顯示名稱/id）
+	/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 	let othersList: { connectionId?: number; id?: string; name: string; isAdmin?: boolean }[] = [];
 	// header 名單展開狀態
 	let showOnlineNames = false;
@@ -478,7 +482,7 @@
 			const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
 			const groupsPlain = immutable.groups;
 			if (groupsPlain) {
-				// 使用 parseRemoteGroups 將 unknown 資料轉為 LocalGroup[]
+				// 使用 parseRemoteGroups 將 unknown 資料轉为 LocalGroup[]
 				const parsed = parseRemoteGroups(groupsPlain as unknown);
 				if (parsed.length > 0) {
 					groups = mergeRemoteWithLocal(parsed);
@@ -821,7 +825,7 @@
 				memberIndex = group.members.findIndex((m) => m.id === pending.memberId);
 			}
 			const displayIndex = (memberIndex ?? 0) >= 0 ? (memberIndex ?? 0) + 1 : '?';
-			// 新格式：例如：成員 2 的玩家 ID 更新：00000 → 00000
+			// 新格式：例如：成員 2 的玩家暱稱 更新：00000 → 00000
 			details = `成員 ${displayIndex} 的 ${fieldLabel} 更新：${String(pending.oldValue)} → ${String(
 				pending.newValue
 			)}`;
@@ -858,7 +862,7 @@
 		groups = groups; // 觸發 Svelte 反應式更新
 		pendingUpdates.delete(key);
 
-		// 合併並同步此團隊的 changeLog 到儲存層，避免覆寫遠端其他使用者的變更
+		// 合併並同步此團隊的 changeLog 到儲存层，避免覆寫遠端其他使用者的變更
 		mergeAndSyncGroupChangeLog(group.id);
 	}
 
@@ -1084,6 +1088,7 @@
 	}
 
 	// 管理員將玩家踢出：把名稱加入 shared `kicked` 清單（由 client 端檢查並自動離開）
+	/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
 	function adminKick(targetName: string) {
 		if (!isAdmin) return;
 		if (!storageInitialized || !storageRoot) {
@@ -1506,6 +1511,9 @@
 		if (timePart) return `${datePart} ${timePart}`;
 		return datePart;
 	}
+
+	// 本頁的主題值（由 ThemeToggle 綁定）
+	let themeValue: 'light' | 'dark' = 'light';
 </script>
 
 <svelte:head>
@@ -1569,86 +1577,6 @@
 {:else}
 	<div class="container">
 		<header>
-			<div class="online-status" aria-live="polite" title="其他線上使用者">
-				{#if othersCount > 0}
-					<button
-						class="online-badge online-toggle"
-						type="button"
-						aria-expanded={showOnlineNames}
-						onclick={toggleShowOnlineNames}
-					>
-						<span class="online-count">在線：{othersCount}</span>
-						<span class="chev" aria-hidden={showOnlineNames ? 'false' : 'true'}
-							>{showOnlineNames ? '▾' : '▸'}</span
-						>
-					</button>
-					{#if showOnlineNames}
-						<div
-							class="online-modal-overlay"
-							role="button"
-							tabindex="0"
-							aria-label="關閉在線玩家清單"
-							onclick={() => (showOnlineNames = false)}
-							onkeydown={(e) => {
-								if (e.key === 'Enter' || e.key === ' ') {
-									e.preventDefault();
-									showOnlineNames = false;
-								}
-							}}
-						>
-							<div
-								class="online-modal"
-								role="dialog"
-								aria-modal="true"
-								tabindex="0"
-								onclick={(event) => event.stopPropagation()}
-								onkeydown={(e) => {
-									// Prevent closing modal when pressing keys inside modal
-									if (e.key === 'Escape') {
-										e.stopPropagation();
-									}
-								}}
-							>
-								<header class="online-modal-header">
-									<h3>在線玩家 ({othersCount})</h3>
-									<button
-										class="modal-close"
-										type="button"
-										onclick={() => (showOnlineNames = false)}
-										aria-label="關閉">✕</button
-									>
-								</header>
-								<div class="online-modal-body">
-									<ul class="online-names-list">
-										{#each othersList as o (o.connectionId ?? o.id ?? o.name)}
-											<li class="online-row">
-												<span class="online-name" class:admin={o.isAdmin}>{o.name}</span>
-												{#if isAdmin && o.name !== gameId}
-													<button
-														class="kick-btn"
-														type="button"
-														onclick={() => {
-															const ok = confirm(`確定要將 ${o.name} 踢出房間？`);
-															if (ok) {
-																adminKick(o.name);
-															}
-														}}
-													>
-														踢出
-													</button>
-												{/if}
-											</li>
-										{/each}
-									</ul>
-								</div>
-							</div>
-						</div>
-					{/if}
-				{:else}
-					<!-- Visually hidden but kept in DOM for accessibility/debugging -->
-					<span class="online-badge sr-only">無其他使用者</span>
-				{/if}
-			</div>
 			<nav class="main-nav" aria-label="主要導覽">
 				<ul class="nav-list">
 					<li class="nav-item">
@@ -1673,6 +1601,21 @@
 					{/if}
 				</ul>
 				<div class="nav-actions">
+					{#if othersCount > 0}
+						<button
+							class="online-badge inline-online"
+							type="button"
+							aria-expanded={showOnlineNames}
+							onclick={toggleShowOnlineNames}
+						>
+							<span class="online-count">在線：{othersCount}</span>
+							<span class="chev" aria-hidden={showOnlineNames ? 'false' : 'true'}
+								>{showOnlineNames ? '▾' : '▸'}</span
+							>
+						</button>
+					{:else}
+						<span class="online-badge sr-only">無其他使用者</span>
+					{/if}
 					<span
 						class="nav-user"
 						title={gameId || '訪客'}
@@ -1683,7 +1626,7 @@
 						{gameId || '訪客'}
 					</span>
 					<button class="nav-logout" onclick={logout}>登出</button>
-					<ThemeToggle />
+					<ThemeToggle bind:theme={themeValue} />
 				</div>
 			</nav>
 			<!-- 頂部區塊：使用者資訊已移至導覽列 -->
@@ -2082,25 +2025,30 @@
 										</div>
 										<div class="form-row">
 											<div class="form-group">
-												<label>
+												<label class="stacked">
 													<span class="label-text">職業</span>
-													<select
-														name={'member-' + index + '-profession'}
-														value={member.profession}
-														onchange={(e) =>
-															updateGroupField(
-																activeGroupId,
-																index,
-																'profession',
-																(e.target as HTMLSelectElement).value
-															)}
-														disabled={isGroupReadOnly(getActiveGroup())}
-													>
-														<option value="">請選擇</option>
-														<option value="坦克">坦克</option>
-														<option value="治療">治療</option>
-														<option value="輸出">輸出</option>
-													</select>
+													<div class="field-control">
+														<ProfessionSelect
+															value={member.profession}
+															on:change={(e) =>
+																updateGroupField(activeGroupId, index, 'profession', e.detail)}
+															disabled={isGroupReadOnly(getActiveGroup())}
+														/>
+													</div>
+
+													<style>
+														/* Stack label and control for profession field only */
+														.stacked .label-text {
+															display: block;
+															margin-bottom: 0.25rem;
+														}
+														.stacked .field-control {
+															margin-top: 0;
+														}
+														.stacked .profession-select {
+															width: 100%;
+														}
+													</style>
 												</label>
 											</div>
 										</div>
@@ -2110,7 +2058,7 @@
 										<div class="form-row">
 											<div class="form-group">
 												<label>
-													<span class="label-text">玩家 ID</span>
+													<span class="label-text">玩家暱稱</span>
 													<input
 														type="text"
 														placeholder="遊戲暱稱"
@@ -2235,3 +2183,87 @@
 		</section>
 	</div>
 {/if}
+
+<style>
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: rgba(0, 0, 0, 0.45);
+		z-index: 1000;
+		padding: 1rem;
+	}
+
+	.modal {
+		background: var(--surface, #fff);
+		color: var(--text, #111);
+		padding: 1.1rem 1.25rem;
+		border-radius: 10px;
+		width: min(96%, 520px);
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+		border: 1px solid rgba(0, 0, 0, 0.06);
+	}
+
+	.modal h3 {
+		margin: 0 0 0.35rem 0;
+		font-size: 1.05rem;
+	}
+
+	.modal p {
+		margin: 0 0 0.9rem 0;
+		color: #444;
+		line-height: 1.4;
+	}
+
+	.modal-actions {
+		display: flex;
+		gap: 0.6rem;
+		justify-content: flex-end;
+		align-items: center;
+	}
+
+	.btn {
+		padding: 0.45rem 0.85rem;
+		border-radius: 8px;
+		border: 1px solid transparent;
+		background: #f3f4f6;
+		color: #111;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 0.95rem;
+	}
+
+	.btn:hover {
+		filter: brightness(0.97);
+	}
+
+	.btn:active {
+		transform: translateY(1px);
+	}
+
+	.btn-danger {
+		background: linear-gradient(180deg, #ff6b6b, #e14b4b);
+		color: #fff;
+		border-color: rgba(0, 0, 0, 0.06);
+	}
+
+	.btn-danger:hover {
+		filter: brightness(0.95);
+	}
+
+	/* small responsive tweaks */
+	@media (max-width: 420px) {
+		.modal {
+			padding: 0.9rem;
+		}
+		.modal-actions {
+			gap: 0.45rem;
+		}
+		.btn {
+			padding: 0.45rem 0.7rem;
+			font-size: 0.9rem;
+		}
+	}
+</style>

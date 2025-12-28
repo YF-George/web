@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { browser } from '$app/environment';
 
 	const THEME_KEY = 'theme';
-	let theme: 'light' | 'dark' = 'light';
+	export let theme: 'light' | 'dark' = 'light';
 
 	function applyTheme(t: 'light' | 'dark') {
+		if (!browser) return;
 		if (t === 'dark') {
 			document.documentElement.dataset.theme = 'dark';
 		} else {
@@ -21,6 +23,9 @@
 		}
 		applyTheme(theme);
 	});
+
+	// react to prop changes from parent (e.g. bind:theme)
+	$: if (browser) applyTheme(theme);
 
 	function toggle() {
 		theme = theme === 'dark' ? 'light' : 'dark';
