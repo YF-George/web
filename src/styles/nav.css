@@ -361,7 +361,9 @@
 
 /* Back button shown in the tabs area (← 回上頁) */
 .tabs .btn {
-	padding: 0.28rem 0.5rem; /* compact to match tabs */
+	/* match .tab sizing so the back button appears identical to tabs */
+	padding: 0.28rem 0.6rem; /* same as .tab */
+	min-height: 32px;
 	border-radius: 8px;
 	background: transparent;
 	border: 1px solid rgba(15, 23, 42, 0.06);
@@ -370,6 +372,9 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4rem;
+	line-height: 1;
+	font-size: 0.9rem;
+	box-sizing: border-box;
 }
 .tabs .btn:hover {
 	background: var(--tab-hover-bg);
