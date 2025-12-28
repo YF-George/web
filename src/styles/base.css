@@ -77,8 +77,8 @@
 }
 
 :root[data-theme='dark'] {
-	--bg: #21242c; /* 明顯更深，不再偏灰 */
-	--surface: #1b1d24;
+	--bg: #2d3038; /* 明顯更深，不再偏灰 */
+	--surface: #202025;
 	--input-surface: #1c2030;
 
 	--text: #e5e7eb;
@@ -102,17 +102,17 @@
 	--accent-blue-start: #1c41bb;
 	--accent-blue-end: #0f4192;
 
-	--accent-green-start: #105721;
-	--accent-green-end: #0a5f1d;
+	--accent-green-start: #045c50;
+	--accent-green-end: #006d49;
 
-	--accent-red-start: #a11919;
-	--accent-red-end: #681010;
+	--accent-red-start: #ff0000;
+	--accent-red-end: #ff2b2b;
 
-	--accent-yellow-start: #977e18;
+	--accent-yellow-start: #99900e;
 	--accent-yellow-end: #a17426;
 
-	--accent-pink-start: #be1c24;
-	--accent-pink-end: #741414;
+	--accent-pink-start: #8a1c1c;
+	--accent-pink-end: #6e1919;
 
 	--accent-muted-text: #020617;
 	--btn-on-accent: #020617;

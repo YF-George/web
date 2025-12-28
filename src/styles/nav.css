@@ -33,7 +33,9 @@
 	align-items: center;
 }
 .online-badge {
-	display: inline-block;
+	background: transparent;
+	/* default hover background (light theme) exposed as a variable so dark mode can override */
+	--nav-logout-hover: rgba(248, 250, 252, 0.9);
 	padding: 0.2rem 0.5rem;
 	border-radius: 8px;
 	background: linear-gradient(
@@ -43,10 +45,10 @@
 	);
 	color: var(--text);
 	font-weight: 700;
-}
-
-.online-names {
-	margin: 0.35rem 0 0 0;
+	.nav-logout:hover {
+		background: var(--nav-logout-hover);
+		transform: translateY(-1px);
+	}
 	padding: 0;
 	list-style: none;
 	display: flex;
@@ -226,7 +228,7 @@
 		box-shadow 160ms ease;
 }
 .nav-logout:hover {
-	background: rgba(248, 250, 252, 0.9);
+	background: rgba(41, 47, 53, 0.219);
 	transform: translateY(-1px);
 }
 .nav-logout:active {
@@ -235,6 +237,21 @@
 .nav-logout:focus {
 	outline: none;
 	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Dark theme overrides for logout button: use a dark surface background and light text for contrast */
+
+:global(html[data-theme='dark']) .nav-logout {
+	/* rely on --surface (dark) when available, fall back to a near-black */
+	background: color-mix(in srgb, var(--surface, #0b1220) 92%, black 8%);
+	border-color: color-mix(in srgb, var(--text, #e6eef8) 8%, transparent);
+	color: var(--text, #e6eef8);
+	/* override hover variable for dark theme */
+	--nav-logout-hover: color-mix(in srgb, var(--surface, #0b1220) 86%, black 14%);
+}
+
+:global(html[data-theme='dark']) .nav-logout:focus {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 10%, transparent);
 }
 
 /* Ensure theme toggle sits comfortably next to logout */
