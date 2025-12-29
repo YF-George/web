@@ -287,7 +287,8 @@
 						...m,
 						profession,
 						playerId: '',
-						gearScore: ''
+						gearScore: '',
+						role: '' // ensure role (隊長/幫打) is cleared for non-pinned members
 					};
 				});
 
@@ -1681,7 +1682,8 @@
 									class:done={group.status === '已出團'}
 									onclick={() => (activeGroupId = group.id)}
 								>
-									團隊 {idx + 1}
+									<span class="tab-label">團隊</span>
+									<span class="tab-num">{idx + 1}</span>
 									{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
 										{#if group.status !== '已準備'}
 											<span

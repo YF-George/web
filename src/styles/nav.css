@@ -306,9 +306,41 @@
 .tab {
 	white-space: nowrap; /* prevent label wrap */
 }
+.tab .tab-label {
+	display: inline-block;
+}
+.tab .tab-num {
+	display: inline-block;
+	font-weight: 800;
+	margin-left: 0.35rem;
+}
+
+/* When viewport is narrow, show only the number to save space */
+@media (max-width: 520px) {
+	.tabs {
+		gap: 0.25rem;
+	}
+	.tab {
+		padding: 0.28rem 0.45rem;
+		min-height: 28px;
+		font-size: 0.88rem;
+	}
+	.tab .tab-label {
+		display: none;
+	}
+	.tab .tab-num {
+		margin-left: 0;
+		padding: 0 0.12rem;
+	}
+	.tab-close {
+		width: 1rem;
+		height: 1rem;
+		font-size: 0.78rem;
+	}
+}
 
 .tab {
-	padding: 0.28rem 0.5rem; /* smaller vertical padding for compact tabs */
+	padding: 0.3rem 0.5rem; /* smaller vertical padding for compact tabs */
 	border-radius: 8px;
 	font-family: var(--font-sans);
 	font-weight: 700;
