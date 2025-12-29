@@ -215,28 +215,48 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
-	padding: 0.35rem 0.6rem;
-	border-radius: 8px;
-	background: transparent;
-	border: 1px solid rgba(15, 23, 42, 0.08);
-	color: var(--text);
+	padding: 0.4rem 0.7rem;
+	border-radius: 10px;
+	/* visual tokens for easier theme overrides */
+	--nav-logout-bg: transparent;
+	--nav-logout-border: color-mix(in srgb, var(--border) 72%, transparent);
+	--nav-logout-color: var(--text);
+	--nav-logout-hover: color-mix(in srgb, var(--accent-blue-start) 8%, transparent);
+	background: var(--nav-logout-bg);
+	border: 1px solid var(--nav-logout-border);
+	color: var(--nav-logout-color);
 	font-weight: 700;
 	cursor: pointer;
 	transition:
 		background 160ms ease,
+		box-shadow 160ms ease,
 		transform 120ms ease,
-		box-shadow 160ms ease;
+		color 160ms ease;
+	position: relative;
+}
+.nav-logout::before {
+	/* simple logout glyph as visual affordance */
+	content: '\2BFB'; /* Unicode: ⯻ or fallback glyph */
+	display: inline-block;
+	margin-right: 0.45rem;
+	font-size: 0.95rem;
+	line-height: 1;
+	opacity: 0.9;
+	transform-origin: center;
+	transition:
+		transform 120ms ease,
+		opacity 120ms ease;
 }
 .nav-logout:hover {
-	background: rgba(41, 47, 53, 0.219);
-	transform: translateY(-1px);
+	background: var(--nav-logout-hover);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
 }
 .nav-logout:active {
 	transform: translateY(0);
 }
 .nav-logout:focus {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 12%, transparent);
 }
 
 /* Dark theme overrides for logout button: use a dark surface background and light text for contrast */
@@ -290,22 +310,71 @@
 	box-shadow: var(--card-shadow);
 }
 
-/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll */
+/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll
+   Disable momentum/smooth scrolling to avoid unwanted "滑動" when toggling views. */
 .tabs {
 	display: flex;
 	gap: 0.5rem;
 	align-items: center;
 	flex-wrap: nowrap;
 	overflow-x: auto;
-	-webkit-overflow-scrolling: touch;
+	-webkit-overflow-scrolling: auto; /* avoid iOS-like momentum on click */
+	scroll-behavior: auto; /* ensure focus/navigation jumps don't animate */
+	scroll-snap-type: none; /* disable any snap behavior */
 }
 
 .tab {
 	white-space: nowrap; /* prevent label wrap */
 }
+.tab .tab-label {
+	display: inline-block;
+}
+.tab .tab-num {
+	display: inline-block;
+	font-weight: 800;
+	margin-left: 0.35rem;
+}
+
+/* When tabs overflow (show scrollbar) hide labels to save space.
+   We toggle the .overflowing class on the .tabs element from JS. */
+.tabs.overflowing .tab .tab-label {
+	display: none;
+}
+.tabs.overflowing {
+	gap: 0.25rem;
+}
+.tabs.overflowing .tab {
+	padding: 0.28rem 0.45rem;
+	min-height: 28px;
+	font-size: 0.88rem;
+}
+.tabs.overflowing .tab .tab-num {
+	margin-left: 0;
+	padding: 0 0.12rem;
+}
+.tabs.overflowing .tab-close {
+	width: 1rem;
+	height: 1rem;
+	font-size: 0.78rem;
+}
+
+/* Back button arrow/label split: hide label when tabs overflow */
+.tabs .btn .btn-arrow {
+	display: inline-block;
+	margin-right: 0.25rem;
+}
+.tabs .btn .btn-label {
+	display: inline-block;
+}
+.tabs.overflowing .btn .btn-label {
+	display: none;
+}
+.tabs.overflowing .btn {
+	padding: 0.28rem 0.45rem; /* match compact tab sizing */
+}
 
 .tab {
-	padding: 0.28rem 0.5rem; /* smaller vertical padding for compact tabs */
+	padding: 0.3rem 0.5rem; /* smaller vertical padding for compact tabs */
 	border-radius: 8px;
 	font-family: var(--font-sans);
 	font-weight: 700;
@@ -361,7 +430,9 @@
 
 /* Back button shown in the tabs area (← 回上頁) */
 .tabs .btn {
-	padding: 0.28rem 0.5rem; /* compact to match tabs */
+	/* match .tab sizing so the back button appears identical to tabs */
+	padding: 0.28rem 0.6rem; /* same as .tab */
+	min-height: 32px;
 	border-radius: 8px;
 	background: transparent;
 	border: 1px solid rgba(15, 23, 42, 0.06);
@@ -370,6 +441,9 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.4rem;
+	line-height: 1;
+	font-size: 0.9rem;
+	box-sizing: border-box;
 }
 .tabs .btn:hover {
 	background: var(--tab-hover-bg);

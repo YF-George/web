@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import ProfessionSelect from '$lib/ProfessionSelect.svelte';
 	import { browser, dev } from '$app/environment';
@@ -223,6 +223,50 @@
 	// 自製「立即清空」確認對話框 state
 	let pendingImmediateClear = false;
 
+	// tabs overflow detection (when tabs show scrollbar)
+	let tabsEl: HTMLElement | null = null;
+	let tabsOverflowing = false;
+	let _ro: ResizeObserver | null = null;
+
+	function updateTabsOverflow() {
+		try {
+			if (!tabsEl) return;
+			// consider scrollWidth > clientWidth as overflowing
+			tabsOverflowing = tabsEl.scrollWidth > tabsEl.clientWidth;
+		} catch (err) {
+			void err;
+		}
+	}
+
+	onMount(() => {
+		// ensure DOM has rendered
+		tick().then(() => updateTabsOverflow());
+		// observe size changes
+		if (typeof ResizeObserver !== 'undefined') {
+			_ro = new ResizeObserver(() => updateTabsOverflow());
+			if (tabsEl) _ro.observe(tabsEl);
+		}
+		// window resize fallback
+		const onWin = () => updateTabsOverflow();
+		if (typeof window !== 'undefined') window.addEventListener('resize', onWin);
+
+		return () => {
+			if (_ro && tabsEl) _ro.unobserve(tabsEl);
+			if (typeof window !== 'undefined') window.removeEventListener('resize', onWin);
+		};
+	});
+
+	onDestroy(() => {
+		if (_ro && tabsEl) {
+			try {
+				_ro.unobserve(tabsEl);
+			} catch (err) {
+				void err;
+			}
+			_ro = null;
+		}
+	});
+
 	const initialGroup = createEmptyGroup();
 	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
 	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
@@ -287,7 +331,8 @@
 						...m,
 						profession,
 						playerId: '',
-						gearScore: ''
+						gearScore: '',
+						role: '' // ensure role (隊長/幫打) is cleared for non-pinned members
 					};
 				});
 
@@ -1670,7 +1715,7 @@
 		<section class="group-section">
 			<div class="tabs-wrapper">
 				<div>
-					<div class="tabs">
+					<div class="tabs" bind:this={tabsEl} class:overflowing={tabsOverflowing}>
 						{#if !showGroupGrid}
 							{#each groups as group, idx (group.id)}
 								<button
@@ -1681,7 +1726,8 @@
 									class:done={group.status === '已出團'}
 									onclick={() => (activeGroupId = group.id)}
 								>
-									團隊 {idx + 1}
+									<span class="tab-label">團隊</span>
+									<span class="tab-num">{idx + 1}</span>
 									{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
 										{#if group.status !== '已準備'}
 											<span
@@ -1714,9 +1760,10 @@
 						{/if}
 						<div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;">
 							{#if activeTab === 'forms' && !showGroupGrid}
-								<button class="btn" onclick={() => (showGroupGrid = true)} aria-label="回上頁"
-									>← 回上頁</button
-								>
+								<button class="btn" onclick={() => (showGroupGrid = true)} aria-label="回上頁">
+									<span class="btn-arrow">←</span>
+									<span class="btn-label">回上頁</span>
+								</button>
 							{/if}
 						</div>
 					</div>
