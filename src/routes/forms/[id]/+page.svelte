@@ -1760,9 +1760,10 @@
 						{/if}
 						<div style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;">
 							{#if activeTab === 'forms' && !showGroupGrid}
-								<button class="btn" onclick={() => (showGroupGrid = true)} aria-label="回上頁"
-									>← 回上頁</button
-								>
+								<button class="btn" onclick={() => (showGroupGrid = true)} aria-label="回上頁">
+									<span class="btn-arrow">←</span>
+									<span class="btn-label">回上頁</span>
+								</button>
 							{/if}
 						</div>
 					</div>
