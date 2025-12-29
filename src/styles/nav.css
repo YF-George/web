@@ -215,28 +215,48 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5rem;
-	padding: 0.35rem 0.6rem;
-	border-radius: 8px;
-	background: transparent;
-	border: 1px solid rgba(15, 23, 42, 0.08);
-	color: var(--text);
+	padding: 0.4rem 0.7rem;
+	border-radius: 10px;
+	/* visual tokens for easier theme overrides */
+	--nav-logout-bg: transparent;
+	--nav-logout-border: color-mix(in srgb, var(--border) 72%, transparent);
+	--nav-logout-color: var(--text);
+	--nav-logout-hover: color-mix(in srgb, var(--accent-blue-start) 8%, transparent);
+	background: var(--nav-logout-bg);
+	border: 1px solid var(--nav-logout-border);
+	color: var(--nav-logout-color);
 	font-weight: 700;
 	cursor: pointer;
 	transition:
 		background 160ms ease,
+		box-shadow 160ms ease,
 		transform 120ms ease,
-		box-shadow 160ms ease;
+		color 160ms ease;
+	position: relative;
+}
+.nav-logout::before {
+	/* simple logout glyph as visual affordance */
+	content: '\2BFB'; /* Unicode: ⯻ or fallback glyph */
+	display: inline-block;
+	margin-right: 0.45rem;
+	font-size: 0.95rem;
+	line-height: 1;
+	opacity: 0.9;
+	transform-origin: center;
+	transition:
+		transform 120ms ease,
+		opacity 120ms ease;
 }
 .nav-logout:hover {
-	background: rgba(41, 47, 53, 0.219);
-	transform: translateY(-1px);
+	background: var(--nav-logout-hover);
+	box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
 }
 .nav-logout:active {
 	transform: translateY(0);
 }
 .nav-logout:focus {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 12%, transparent);
 }
 
 /* Dark theme overrides for logout button: use a dark surface background and light text for contrast */
