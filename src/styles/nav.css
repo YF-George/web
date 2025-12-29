@@ -315,28 +315,27 @@
 	margin-left: 0.35rem;
 }
 
-/* When viewport is narrow, show only the number to save space */
-@media (max-width: 520px) {
-	.tabs {
-		gap: 0.25rem;
-	}
-	.tab {
-		padding: 0.28rem 0.45rem;
-		min-height: 28px;
-		font-size: 0.88rem;
-	}
-	.tab .tab-label {
-		display: none;
-	}
-	.tab .tab-num {
-		margin-left: 0;
-		padding: 0 0.12rem;
-	}
-	.tab-close {
-		width: 1rem;
-		height: 1rem;
-		font-size: 0.78rem;
-	}
+/* When tabs overflow (show scrollbar) hide labels to save space.
+   We toggle the .overflowing class on the .tabs element from JS. */
+.tabs.overflowing .tab .tab-label {
+	display: none;
+}
+.tabs.overflowing {
+	gap: 0.25rem;
+}
+.tabs.overflowing .tab {
+	padding: 0.28rem 0.45rem;
+	min-height: 28px;
+	font-size: 0.88rem;
+}
+.tabs.overflowing .tab .tab-num {
+	margin-left: 0;
+	padding: 0 0.12rem;
+}
+.tabs.overflowing .tab-close {
+	width: 1rem;
+	height: 1rem;
+	font-size: 0.78rem;
 }
 
 .tab {

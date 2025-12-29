@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import ProfessionSelect from '$lib/ProfessionSelect.svelte';
 	import { browser, dev } from '$app/environment';
@@ -222,6 +222,50 @@
 
 	// 自製「立即清空」確認對話框 state
 	let pendingImmediateClear = false;
+
+	// tabs overflow detection (when tabs show scrollbar)
+	let tabsEl: HTMLElement | null = null;
+	let tabsOverflowing = false;
+	let _ro: ResizeObserver | null = null;
+
+	function updateTabsOverflow() {
+		try {
+			if (!tabsEl) return;
+			// consider scrollWidth > clientWidth as overflowing
+			tabsOverflowing = tabsEl.scrollWidth > tabsEl.clientWidth;
+		} catch (err) {
+			void err;
+		}
+	}
+
+	onMount(() => {
+		// ensure DOM has rendered
+		tick().then(() => updateTabsOverflow());
+		// observe size changes
+		if (typeof ResizeObserver !== 'undefined') {
+			_ro = new ResizeObserver(() => updateTabsOverflow());
+			if (tabsEl) _ro.observe(tabsEl);
+		}
+		// window resize fallback
+		const onWin = () => updateTabsOverflow();
+		if (typeof window !== 'undefined') window.addEventListener('resize', onWin);
+
+		return () => {
+			if (_ro && tabsEl) _ro.unobserve(tabsEl);
+			if (typeof window !== 'undefined') window.removeEventListener('resize', onWin);
+		};
+	});
+
+	onDestroy(() => {
+		if (_ro && tabsEl) {
+			try {
+				_ro.unobserve(tabsEl);
+			} catch (err) {
+				void err;
+			}
+			_ro = null;
+		}
+	});
 
 	const initialGroup = createEmptyGroup();
 	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
@@ -1671,7 +1715,7 @@
 		<section class="group-section">
 			<div class="tabs-wrapper">
 				<div>
-					<div class="tabs">
+					<div class="tabs" bind:this={tabsEl} class:overflowing={tabsOverflowing}>
 						{#if !showGroupGrid}
 							{#each groups as group, idx (group.id)}
 								<button

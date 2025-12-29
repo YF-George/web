@@ -547,3 +547,26 @@ form textarea:focus {
 	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-blue-start) 10%, transparent);
 	background: var(--input-surface);
 }
+
+/* =========================================================
+   Accessibility / UI tweak: hide native scrollbars globally
+   - Firefox: use `scrollbar-width: none`
+   - IE/Edge legacy: use `-ms-overflow-style: none`
+   - WebKit: hide via ::-webkit-scrollbar
+   NOTE: this hides scrollbars visually but scrolling still works.
+   If you need scrollbars for accessibility, consider adding a
+   visible focus/indicator for scrollable regions instead.
+========================================================= */
+html,
+body,
+* {
+	scrollbar-width: none; /* Firefox */
+	-ms-overflow-style: none; /* IE 10+ */
+}
+
+/* WebKit-based browsers */
+*::-webkit-scrollbar {
+	width: 0px;
+	height: 0px;
+	display: none;
+}
