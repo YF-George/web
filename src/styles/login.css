@@ -68,6 +68,10 @@ login.css
 	transition: all 0.2s ease;
 	width: 100%;
 	box-sizing: border-box;
+	/* Interactivity enhancements */
+	accent-color: var(--primary);
+	caret-color: var(--primary);
+	field-sizing: content;
 }
 
 .login-button {
@@ -83,6 +87,11 @@ login.css
 	box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 	width: 100%;
 	text-align: center;
+	/* Interactivity enhancements */
+	user-select: none;
+	touch-action: manipulation;
+	will-change: transform, box-shadow;
+	-webkit-tap-highlight-color: transparent;
 }
 
 @media (max-width: 768px) {

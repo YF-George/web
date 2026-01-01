@@ -10,11 +10,13 @@
 /* Summary grid showing each group as a card (6 per row) */
 .group-summary-grid {
 	display: grid;
-	/* make cards responsive and prevent them from stretching too wide */
 	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 	gap: 1rem;
 	margin-bottom: 1rem;
-	justify-content: center; /* center cards when there are few columns */
+	justify-content: center;
+	/* Interactivity enhancements */
+	scroll-padding: 1rem;
+	scroll-snap-type: y proximity;
 }
 
 /* wrapper to position summary-specific actions (e.g. immediate clear) */
@@ -88,8 +90,13 @@
 		transform 120ms ease,
 		box-shadow 120ms ease,
 		border-color 120ms ease;
-	max-width: 360px; /* prevent an individual card from becoming too wide */
+	max-width: 360px;
 	width: 100%;
+	/* Interactivity enhancements */
+	user-select: none;
+	will-change: transform, box-shadow;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
 }
 .group-summary-card:focus,
 .group-summary-card:hover {
@@ -361,6 +368,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
+	/* Interactivity enhancements */
+	scroll-margin: 1rem;
+	scroll-snap-align: start;
 }
 
 /* Inline check toggle to sit next to leader/helper on the same row */
@@ -390,6 +400,11 @@
 		transform 120ms ease,
 		box-shadow 120ms ease;
 	margin-left: 0.5rem;
+	/* Interactivity enhancements */
+	user-select: none;
+	touch-action: manipulation;
+	will-change: transform, background;
+	-webkit-tap-highlight-color: transparent;
 }
 .member-check:hover {
 	background: color-mix(in srgb, var(--name-bg) 70%, var(--surface));
@@ -474,7 +489,6 @@
 	margin-left: 0.5rem;
 }
 .role-toggle-btn {
-	/* allow text labels (e.g. "🚩隊長", "🤝幫打") to fit */
 	min-width: 3.2rem;
 	height: auto;
 	padding: 0.28rem 0.5rem;
@@ -495,6 +509,11 @@
 		box-shadow 120ms ease,
 		background 120ms ease,
 		color 120ms ease;
+	/* Interactivity enhancements */
+	user-select: none;
+	touch-action: manipulation;
+	will-change: transform, box-shadow;
+	-webkit-tap-highlight-color: transparent;
 }
 .role-toggle-btn[aria-pressed='true'] {
 	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
@@ -554,6 +573,11 @@
 	transition: all 0.2s ease;
 	background: var(--surface);
 	color: var(--text);
+	/* Interactivity enhancements */
+	accent-color: var(--primary);
+	caret-color: var(--primary);
+	appearance: auto;
+	field-sizing: content;
 }
 
 .member-card input[type='text']:hover,
@@ -697,6 +721,10 @@
 		border-color 0.12s,
 		box-shadow 0.12s,
 		background-color 0.12s;
+}
+input[type='date'].departure-input,
+input[type='time'].departure-input {
+	color-scheme: light dark; /* allow native pickers to respect theme */
 }
 .departure-input:focus {
 	background: var(--surface);

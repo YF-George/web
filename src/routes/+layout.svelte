@@ -18,7 +18,10 @@
 
 	function applyTheme(t: 'light' | 'dark') {
 		if (typeof document === 'undefined') return;
-		document.documentElement.setAttribute('data-theme', t);
+		const root = document.documentElement;
+		root.setAttribute('data-theme', t);
+		root.classList.toggle('dark', t === 'dark'); // Tailwind class-based dark mode
+		root.style.colorScheme = t;
 	}
 
 	function setTheme(t: 'light' | 'dark') {
@@ -43,13 +46,7 @@
 		if (typeof window !== 'undefined') {
 			try {
 				const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
-				if (saved === 'light' || saved === 'dark') {
-					setTheme(saved);
-				} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-					setTheme('dark');
-				} else {
-					setTheme('light');
-				}
+				setTheme(saved === 'light' || saved === 'dark' ? saved : 'light');
 			} catch {
 				setTheme('light');
 			}

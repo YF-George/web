@@ -13,6 +13,9 @@
 	display: flex;
 	flex-direction: column;
 	gap: 1rem;
+	/* Interactivity enhancements */
+	scroll-behavior: smooth;
+	scroll-padding: 1rem;
 }
 
 .toolbar {
@@ -37,6 +40,9 @@
 	border: 1px solid var(--border);
 	box-shadow: var(--card-shadow);
 	color: var(--text);
+	/* Interactivity enhancements */
+	will-change: transform;
+	backface-visibility: hidden;
 }
 
 /* floating theme toggle button — only apply when explicitly requested via `.floating` */
@@ -52,6 +58,11 @@
 	border-radius: 999px;
 	box-shadow: var(--card-shadow);
 	cursor: pointer;
+	/* Interactivity enhancements */
+	user-select: none;
+	touch-action: manipulation;
+	will-change: transform;
+	-webkit-tap-highlight-color: transparent;
 }
 
 .theme-toggle.floating:focus {

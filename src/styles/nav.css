@@ -20,6 +20,11 @@
 	font-weight: 600;
 	color: var(--muted);
 	cursor: pointer;
+	/* Interactivity enhancements */
+	user-select: none;
+	touch-action: manipulation;
+	transition: all 0.2s ease;
+	-webkit-tap-highlight-color: transparent;
 }
 
 .nav-link.active {
@@ -31,6 +36,9 @@
 	display: flex;
 	gap: 0.5rem;
 	align-items: center;
+	/* Interactivity enhancements */
+	scroll-behavior: smooth;
+	touch-action: pan-x pan-y;
 }
 .online-badge {
 	background: transparent;
@@ -182,12 +190,43 @@
 	cursor: pointer;
 }
 .nav-user {
+	position: relative;
 	display: inline-flex;
 	gap: 0.5rem;
 	align-items: center;
-	padding: 0.25rem 0.5rem;
+	padding: 0.25rem 1.1rem 0.25rem 0.5rem; /* add right space for badge */
 	border-radius: 8px;
 	font-weight: 700;
+	cursor: pointer;
+	border: none;
+	transition: all 0.2s ease;
+	min-height: 34px;
+}
+
+.nav-user:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.nav-user .user-name {
+	display: inline-block;
+	line-height: 1.2;
+}
+
+.online-count-badge {
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	background: linear-gradient(135deg, #ef4444, #dc2626);
+	color: white;
+	font-size: 0.7rem;
+	font-weight: 700;
+	padding: 0.15rem 0.4rem;
+	border-radius: 10px;
+	min-width: 18px;
+	text-align: center;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	border: 2px solid var(--surface, #fff);
 }
 .nav-role {
 	/* 使用者角色標籤（例如：一般玩家 / 管理員）
@@ -233,19 +272,6 @@
 		transform 120ms ease,
 		color 160ms ease;
 	position: relative;
-}
-.nav-logout::before {
-	/* simple logout glyph as visual affordance */
-	content: '\2BFB'; /* Unicode: ⯻ or fallback glyph */
-	display: inline-block;
-	margin-right: 0.45rem;
-	font-size: 0.95rem;
-	line-height: 1;
-	opacity: 0.9;
-	transform-origin: center;
-	transition:
-		transform 120ms ease,
-		opacity 120ms ease;
 }
 .nav-logout:hover {
 	background: var(--nav-logout-hover);
@@ -310,64 +336,40 @@
 	box-shadow: var(--card-shadow);
 }
 
-/* Tabs container: use horizontal flex layout, prevent wrapping and allow horizontal scroll
-   Disable momentum/smooth scrolling to avoid unwanted "滑動" when toggling views. */
+/* Tabs container: compact layout with wrapping as fallback */
 .tabs {
 	display: flex;
-	gap: 0.5rem;
+	gap: 0.35rem;
 	align-items: center;
-	flex-wrap: nowrap;
-	overflow-x: auto;
-	-webkit-overflow-scrolling: auto; /* avoid iOS-like momentum on click */
-	scroll-behavior: auto; /* ensure focus/navigation jumps don't animate */
-	scroll-snap-type: none; /* disable any snap behavior */
+	flex-wrap: wrap;
+	overflow-x: visible;
 }
 
 .tab {
-	white-space: nowrap; /* prevent label wrap */
-}
-.tab .tab-label {
-	display: inline-block;
+	white-space: nowrap;
 }
 .tab .tab-num {
 	display: inline-block;
-	font-weight: 800;
-	margin-left: 0.35rem;
+	font-weight: 700;
 }
 
-/* When tabs overflow (show scrollbar) hide labels to save space.
-   We toggle the .overflowing class on the .tabs element from JS. */
-.tabs.overflowing .tab .tab-label {
-	display: none;
-}
-.tabs.overflowing {
-	gap: 0.25rem;
-}
-.tabs.overflowing .tab {
-	padding: 0.28rem 0.45rem;
-	min-height: 28px;
-	font-size: 0.88rem;
-}
-.tabs.overflowing .tab .tab-num {
-	margin-left: 0;
-	padding: 0 0.12rem;
-}
-.tabs.overflowing .tab-close {
-	width: 1rem;
-	height: 1rem;
-	font-size: 0.78rem;
-}
+/* Legacy overflow styles removed - tabs are now compact by default */
 
-/* Back button arrow/label split: hide label when tabs overflow */
+/* Legacy overflow styles removed - tabs are now compact by default */
+
+/* Back button - show label only on larger screens */
 .tabs .btn .btn-arrow {
 	display: inline-block;
-	margin-right: 0.25rem;
 }
 .tabs .btn .btn-label {
-	display: inline-block;
-}
-.tabs.overflowing .btn .btn-label {
 	display: none;
+}
+
+@media (min-width: 640px) {
+	.tabs .btn .btn-label {
+		display: inline-block;
+		margin-left: 0.25rem;
+	}
 }
 .tabs.overflowing .btn {
 	padding: 0.28rem 0.45rem; /* match compact tab sizing */
@@ -537,4 +539,101 @@
 	align-items: center;
 	min-height: 32px;
 	line-height: 1; /* keep consistent text rendering */
+}
+
+/* Online users modal styles */
+.online-users-modal {
+	background: var(--card-bg);
+	border-radius: 12px;
+	padding: 1.5rem;
+	min-width: 400px;
+	max-width: 500px;
+}
+
+.online-users-modal h3 {
+	margin: 0 0 1rem 0;
+	color: var(--text);
+	font-size: 1.25rem;
+	font-weight: 600;
+}
+
+.online-users-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin-bottom: 1.5rem;
+}
+
+.online-user-item {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem;
+	background: var(--surface);
+	border-radius: 8px;
+	border: 1px solid var(--border);
+}
+
+.online-user-item.current-user {
+	background: var(--team-bg);
+	border-color: var(--accent-blue-start);
+}
+
+.online-user-item .user-name {
+	flex: 1;
+	font-weight: 500;
+	color: var(--text);
+}
+
+.online-user-item .user-badge {
+	padding: 0.25rem 0.75rem;
+	border-radius: 6px;
+	font-size: 0.875rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.user-badge.admin-badge {
+	background: linear-gradient(135deg, var(--accent-blue-start), var(--accent-blue-end));
+	color: white;
+}
+
+.user-badge.player-badge {
+	background: var(--level-bg);
+	color: var(--text);
+	border: 1px solid var(--border);
+}
+
+.btn-kick {
+	background: linear-gradient(135deg, var(--accent-red-start), var(--accent-red-end));
+	color: white;
+	border: none;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	cursor: pointer;
+	transition:
+		opacity 0.2s,
+		transform 0.15s;
+}
+
+.btn-kick:hover {
+	opacity: 0.9;
+	transform: translateY(-1px);
+}
+
+.btn-kick:active {
+	transform: translateY(0);
+}
+
+.online-users-info {
+	color: var(--text);
+	margin: 0 0 0.5rem 0;
+}
+
+.online-users-note {
+	color: var(--text-muted);
+	font-size: 0.875rem;
+	margin: 0;
 }

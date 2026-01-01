@@ -262,6 +262,10 @@
 		color: #fff;
 	}
 
+	:global(html[data-theme='dark']) .ps-button {
+		color: #e6eef8; /* keep caret/text visible on dark backgrounds */
+	}
+
 	:global(html[data-theme='dark']) .opt-bg {
 		background: color-mix(in srgb, var(--opt-color) 80%, black 50%);
 		color: #fff;

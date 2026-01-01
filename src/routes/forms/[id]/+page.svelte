@@ -165,26 +165,33 @@
 	let roomName = 'my-room';
 	let room: ReturnType<typeof enterRoom>['room'] | null = null;
 
-	let status = '';
+	let status = $state('');
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	let pendingUpdates = new Map<string, PendingUpdate>(); // 合併頻繁編輯再寫入紀錄
-	let gameId = '';
-	let uid = '';
-	let isLoggedIn = false;
-	let isAdmin = false;
-	let isLoading = false;
+	let gameId = $state('');
+	let uid = $state('');
+	let isLoggedIn = $state(false);
+	let showPasswordField = $state(false);
+	let isAdmin = $state(false);
+	let isLoading = $state(false);
 	// 當前連線的加入時間 (ms since epoch)，用於避免舊的 kicked 條目誤判新連線
 	let joinedAt = 0;
 
 	// 目前線上（others）數量
-	let othersCount = 0;
+	let othersCount = $state(0);
 
 	// example binding for new ProfessionSelect usage (removed)
 	// 線上使用者清單（含顯示名稱/id）
-	/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-	let othersList: { connectionId?: number; id?: string; name: string; isAdmin?: boolean }[] = [];
+	let othersList = $state<
+		{ connectionId?: number; id?: string; name: string; isAdmin?: boolean }[]
+	>([]);
 	// header 名單展開狀態
-	let showOnlineNames = false;
+	let showOnlineNames = $state(false);
+
+	// 欄位編輯鎖定：追蹤誰正在編輯哪個欄位
+	// key format: "groupId-memberIndex-field" or "groupId-field"
+	let fieldLocks = $state<Record<string, { user: string; timestamp: number }>>({});
+	let myEditingField = $state<string | null>(null);
 
 	function _onKeydownClose(e: KeyboardEvent) {
 		if (e.key === 'Escape' || e.key === 'Esc') {
@@ -212,20 +219,20 @@
 	}
 
 	// 本頁的分頁狀態（填寫/紀錄）
-	let activeTab: 'forms' | 'history' = 'forms';
+	let activeTab = $state<'forms' | 'history'>('forms');
 
 	// 是否顯示團隊總表（summary grid），預設顯示
-	let showGroupGrid = true;
+	let showGroupGrid = $state(true);
 
 	// 自製刪除確認對話框 state
-	let pendingDeleteGroupId: string | null = null;
+	let pendingDeleteGroupId = $state<string | null>(null);
 
 	// 自製「立即清空」確認對話框 state
-	let pendingImmediateClear = false;
+	let pendingImmediateClear = $state(false);
 
 	// tabs overflow detection (when tabs show scrollbar)
-	let tabsEl: HTMLElement | null = null;
-	let tabsOverflowing = false;
+	let tabsEl = $state<HTMLElement | null>(null);
+	let tabsOverflowing = $state(false);
 	let _ro: ResizeObserver | null = null;
 
 	function updateTabsOverflow() {
@@ -268,8 +275,8 @@
 	});
 
 	const initialGroup = createEmptyGroup();
-	let groups: LocalGroup[] = [initialGroup]; // 本地表單資料，鏡像 Liveblocks 儲存層
-	let activeGroupId = initialGroup.id; // 當前操作中的團隊 ID
+	let groups = $state<LocalGroup[]>([initialGroup]); // 本地表單資料，鏡像 Liveblocks 儲存層
+	let activeGroupId = $state(initialGroup.id); // 當前操作中的團隊 ID
 
 	// 同步排程/防回圈旗標
 	const SYNC_DEBOUNCE_MS = 700;
@@ -430,7 +437,8 @@
 				groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
 			);
 			storageRoot!.set('groups', liveGroups);
-			setTimeout(() => (localWriteInProgress = false), SYNC_DEBOUNCE_MS + 200);
+			// 縮短阻擋時間，只阻擋立即的回彈更新
+			setTimeout(() => (localWriteInProgress = false), 300);
 		} catch (e) {
 			console.error('performFullSync error', e);
 			localWriteInProgress = false;
@@ -513,7 +521,8 @@
 				})
 			);
 			storageRoot.set('groups', newLiveGroups);
-			setTimeout(() => (localWriteInProgress = false), SYNC_DEBOUNCE_MS + 200);
+			// 縮短阻擋時間，只阻擋立即的回彈更新
+			setTimeout(() => (localWriteInProgress = false), 300);
 		} catch (e) {
 			console.error('syncSingleGroupToStorage error', e);
 			localWriteInProgress = false;
@@ -563,6 +572,7 @@
 		let unsubPage: () => void = () => {};
 		let unsubscribeOthers: () => void = () => {};
 		let unsubscribeStorage: () => void = () => {};
+		let loginCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 		// perform async init inside an IIFE
 		(async () => {
@@ -573,165 +583,263 @@
 				roomName = rn;
 			});
 
-			const connection = enterRoom(roomName);
-			room = connection.room;
-			leave = connection.leave;
-
-			// others 訂閱：更新線上使用者計數顯示
-			unsubscribeOthers = room.subscribe('others', (o) => {
-				try {
-					const parseEntry = (entry: Record<string, unknown> | null | undefined) => {
-						// entry may contain presence or info fields depending on Liveblocks setup
-						const e = (entry ?? {}) as Record<string, unknown>;
-						const connectionId = (e.connectionId ?? e.connection_id) as number | undefined;
-						const id = (e.id ?? e.userId ?? e.actor) as string | undefined;
-
-						// presence may be either an object of fields or an object with a `user` child
-						let presenceObj: Record<string, unknown> | undefined;
-						const rawPresence = e.presence as unknown;
-						if (rawPresence && typeof rawPresence === 'object') {
-							const pr = rawPresence as Record<string, unknown>;
-							if (pr.user && typeof pr.user === 'object')
-								presenceObj = pr.user as Record<string, unknown>;
-							else presenceObj = pr;
-						}
-
-						// info similarly may be present under different keys
-						let infoObj: Record<string, unknown> | undefined;
-						const rawInfo = (e.info ?? e.userInfo) as unknown;
-						if (rawInfo && typeof rawInfo === 'object')
-							infoObj = rawInfo as Record<string, unknown>;
-
-						let name = '';
-						let isAdminFlag = false;
-						if (presenceObj) {
-							name = String(
-								presenceObj.name ?? presenceObj.displayName ?? presenceObj.username ?? ''
-							);
-							isAdminFlag = !!(presenceObj.isAdmin ?? presenceObj.is_admin ?? false);
-						}
-						if (!name && infoObj) {
-							name = String(
-								infoObj.name ?? infoObj.displayName ?? infoObj.username ?? infoObj.email ?? ''
-							);
-							isAdminFlag = isAdminFlag || !!(infoObj.isAdmin ?? infoObj.is_admin ?? false);
-						}
-						if (!name) name = String(id ?? connectionId ?? '匿名');
-						return { connectionId, id, name, isAdmin: isAdminFlag };
-					};
-
-					let list: { connectionId?: number; id?: string; name: string }[] = [];
-					if (Array.isArray(o)) {
-						list = o.map(parseEntry);
-					} else if (
-						o &&
-						typeof (o as { size?: unknown }).size === 'number' &&
-						typeof (o as { values?: unknown }).values === 'function'
-					) {
-						// Map/Set-like
-						list = Array.from((o as { values: () => Iterable<unknown> }).values()).map((v) =>
-							parseEntry(v as Record<string, unknown> | null | undefined)
-						);
-					} else if (o && typeof o === 'object') {
-						// plain object keyed by connection id
-						list = Object.values(o as unknown as Record<string, unknown>).map((v) =>
-							parseEntry(v as Record<string, unknown> | null | undefined)
-						);
+			// Wait for login before entering room (use interval for re-login after logout)
+			const checkLogin = () => {
+				if (loginCheckInterval) clearInterval(loginCheckInterval);
+				loginCheckInterval = setInterval(() => {
+					if (isLoggedIn && !room) {
+						if (loginCheckInterval) clearInterval(loginCheckInterval);
+						initializeRoom();
 					}
+				}, 200);
+			};
 
-					othersList = list;
-					othersCount = list.length;
+			// If already logged in, initialize immediately
+			if (isLoggedIn) {
+				initializeRoom();
+			} else {
+				checkLogin();
+			}
 
-					// 檢查 kicked 名單（若有）並自動移除被標記者
+			async function initializeRoom() {
+				// Clean up any existing subscriptions before creating new ones
+				if (unsubscribeOthers) {
 					try {
-						let immutable: unknown = null;
-						if (storageRoot) {
-							immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable() as unknown;
+						unsubscribeOthers();
+					} catch (e) {
+						console.error('Error unsubscribing others:', e);
+					}
+				}
+				if (unsubscribeStorage) {
+					try {
+						unsubscribeStorage();
+					} catch (e) {
+						console.error('Error unsubscribing storage:', e);
+					}
+				}
+
+				const connection = enterRoom(roomName);
+				room = connection.room;
+				leave = connection.leave;
+
+				// Helper function to update others list
+				const updateOthersList = (o: unknown) => {
+					try {
+						const parseEntry = (entry: Record<string, unknown> | null | undefined) => {
+							// entry may contain presence or info fields depending on Liveblocks setup
+							const e = (entry ?? {}) as Record<string, unknown>;
+							const connectionId = (e.connectionId ?? e.connection_id) as number | undefined;
+							const id = (e.id ?? e.userId ?? e.actor) as string | undefined;
+
+							// presence may be either an object of fields or an object with a `user` child
+							let presenceObj: Record<string, unknown> | undefined;
+							const rawPresence = e.presence as unknown;
+							if (rawPresence && typeof rawPresence === 'object') {
+								const pr = rawPresence as Record<string, unknown>;
+								if (pr.user && typeof pr.user === 'object')
+									presenceObj = pr.user as Record<string, unknown>;
+								else presenceObj = pr;
+							}
+
+							// info similarly may be present under different keys
+							let infoObj: Record<string, unknown> | undefined;
+							const rawInfo = (e.info ?? e.userInfo) as unknown;
+							if (rawInfo && typeof rawInfo === 'object')
+								infoObj = rawInfo as Record<string, unknown>;
+
+							let name = '';
+							let isAdminFlag = false;
+							if (presenceObj) {
+								name = String(
+									presenceObj.name ?? presenceObj.displayName ?? presenceObj.username ?? ''
+								);
+								isAdminFlag = !!(presenceObj.isAdmin ?? presenceObj.is_admin ?? false);
+							}
+							if (!name && infoObj) {
+								name = String(
+									infoObj.name ?? infoObj.displayName ?? infoObj.username ?? infoObj.email ?? ''
+								);
+								isAdminFlag = isAdminFlag || !!(infoObj.isAdmin ?? infoObj.is_admin ?? false);
+							}
+							if (!name) name = String(id ?? connectionId ?? '匿名');
+							return { connectionId, id, name, isAdmin: isAdminFlag };
+						};
+
+						let list: { connectionId?: number; id?: string; name: string }[] = [];
+						if (Array.isArray(o)) {
+							list = o.map(parseEntry);
+						} else if (
+							o &&
+							typeof (o as { size?: unknown }).size === 'number' &&
+							typeof (o as { values?: unknown }).values === 'function'
+						) {
+							// Map/Set-like
+							list = Array.from((o as { values: () => Iterable<unknown> }).values()).map((v) =>
+								parseEntry(v as Record<string, unknown> | null | undefined)
+							);
+						} else if (o && typeof o === 'object') {
+							// plain object keyed by connection id
+							list = Object.values(o as unknown as Record<string, unknown>).map((v) =>
+								parseEntry(v as Record<string, unknown> | null | undefined)
+							);
 						}
-						const kicked = ((immutable as Record<string, unknown> | null)?.kicked ??
-							[]) as unknown[];
-						if (Array.isArray(kicked) && kicked.length > 0) {
-							const myName = gameId || '';
-							if (myName && !isAdmin) {
-								const now = Date.now();
-								const matched = (kicked as unknown[]).some((k) => {
-									if (k && typeof k === 'object') {
-										const kk = k as Record<string, unknown>;
-										// only consider kicks that target this name AND were created after this connection joined
-										const ts = Number(kk.ts ?? 0);
-										// require kick to be after the connection join finished (small buffer)
-										const joinBuffer = joinedAt ? joinedAt + 500 : 0;
-										// also ignore kicks that are too old ( > 10s ) to avoid race conditions
-										return String(kk.name ?? '') === myName && ts >= joinBuffer && now - ts < 10000;
+
+						othersList = list;
+						othersCount = list.length;
+
+						console.log(
+							'Others updated:',
+							othersCount,
+							list.map((u) => u.name)
+						);
+					} catch (e) {
+						console.error('updateOthersList error:', e);
+					}
+				};
+
+				// others 訂閱：更新線上使用者計數顯示
+				unsubscribeOthers = room.subscribe('others', (o) => {
+					updateOthersList(o);
+
+					try {
+						// 更新欄位鎖定狀態
+						const newFieldLocks: Record<string, { user: string; timestamp: number }> = {};
+						for (const user of othersList) {
+							try {
+								// 從 presence 獲取 editingField
+								const userObj = Array.isArray(o)
+									? o.find((u) => {
+											const uu = u && typeof u === 'object' ? (u as Record<string, unknown>) : {};
+											const presence = uu.presence as Record<string, unknown> | undefined;
+											const userName = presence?.name ?? presence?.displayName ?? '';
+											return userName === user.name;
+										})
+									: null;
+
+								if (userObj && typeof userObj === 'object') {
+									const presenceData = (userObj as Record<string, unknown>).presence as
+										| Record<string, unknown>
+										| undefined;
+									const editingField = presenceData?.editingField as string | undefined;
+
+									if (editingField && user.name) {
+										newFieldLocks[editingField] = {
+											user: user.name,
+											timestamp: Date.now()
+										};
 									}
-									// backward compatibility if stored as plain string: ignore (do not auto-kick old-format entries)
-									return false;
-								});
-								if (matched) {
-									try {
-										if (leave) leave();
-										isLoggedIn = false;
-										joinedAt = 0;
-									} catch (err) {
-										console.error('leave after kicked error', err);
+								}
+							} catch (err) {
+								void err;
+							}
+						}
+						fieldLocks = newFieldLocks;
+
+						// 檢查 kicked 名單（若有）並自動移除被標記者
+						try {
+							let immutable: unknown = null;
+							if (storageRoot) {
+								immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable() as unknown;
+							}
+							const kicked = ((immutable as Record<string, unknown> | null)?.kicked ??
+								[]) as unknown[];
+							if (Array.isArray(kicked) && kicked.length > 0) {
+								const myName = gameId || '';
+								if (myName && !isAdmin) {
+									const now = Date.now();
+									const matched = (kicked as unknown[]).some((k) => {
+										if (k && typeof k === 'object') {
+											const kk = k as Record<string, unknown>;
+											// only consider kicks that target this name AND were created after this connection joined
+											const ts = Number(kk.ts ?? 0);
+											// require kick to be after the connection join finished (small buffer)
+											const joinBuffer = joinedAt ? joinedAt + 500 : 0;
+											// also ignore kicks that are too old ( > 10s ) to avoid race conditions
+											return (
+												String(kk.name ?? '') === myName && ts >= joinBuffer && now - ts < 10000
+											);
+										}
+										// backward compatibility if stored as plain string: ignore (do not auto-kick old-format entries)
+										return false;
+									});
+									if (matched) {
+										try {
+											// Clean logout instead of just leaving
+											if (leave) {
+												leave();
+												room = null;
+												leave = null;
+											}
+											isLoggedIn = false;
+											isAdmin = false;
+											joinedAt = 0;
+											storageInitialized = false;
+											storageRoot = null;
+											// Don't clear gameId/uid to allow quick re-login
+										} catch (err) {
+											console.error('leave after kicked error', err);
+										}
 									}
 								}
 							}
-						}
-					} catch {
-						// ignore
-					}
-				} catch (e) {
-					console.error('others subscribe error', e);
-				}
-			});
-
-			try {
-				// 儲存根節點包含共享的團隊清單
-				const { root } = await room.getStorage();
-				storageRoot = root as unknown as LiveObject<LiveRoot>;
-				storageInitialized = true;
-
-				// 當儲存就緒時啟動週期性自動刷新排程
-				scheduleWeeklyRefresh();
-
-				// 若尚未存在 groups，初始化一次
-				try {
-					const existing = storageRoot.get('groups');
-					if (!existing) {
-						storageRoot.set(
-							'groups',
-							new LiveList<LiveObject<LiveGroup>>(
-								groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
-							)
-						);
-					}
-				} catch (e) {
-					console.error('storage groups init error', e);
-				}
-
-				// Liveblocks Storage -> 本地 state，保持雙向同步
-				// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
-				unsubscribeStorage = room.subscribe(storageRoot!, () => {
-					try {
-						if (localWriteInProgress) return; // 忽略來自本地寫入觸發的事件
-						const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
-						const groupsPlain = immutable.groups;
-						if (groupsPlain) {
-							const parsed = parseRemoteGroups(groupsPlain as unknown);
-							if (parsed.length > 0) {
-								groups = mergeRemoteWithLocal(parsed);
-							}
-							if (!groups.find((g) => g.id === activeGroupId)) {
-								activeGroupId = groups[0]?.id || initialGroup.id;
-							}
+						} catch {
+							// ignore
 						}
 					} catch (e) {
-						console.error('storage subscribe error', e);
+						console.error('others subscribe error', e);
 					}
 				});
-			} catch (e) {
-				console.error('init storage error', e);
+
+				try {
+					// 儲存根節點包含共享的團隊清單
+					const { root } = await room.getStorage();
+					storageRoot = root as unknown as LiveObject<LiveRoot>;
+					storageInitialized = true;
+
+					// 當儲存就緒時啟動週期性自動刷新排程
+					scheduleWeeklyRefresh();
+
+					// 若尚未存在 groups，初始化一次
+					try {
+						const existing = storageRoot.get('groups');
+						if (!existing) {
+							storageRoot.set(
+								'groups',
+								new LiveList<LiveObject<LiveGroup>>(
+									groups.map((g) => toLiveGroup(g) as unknown as LiveObject<LiveGroup>)
+								)
+							);
+						}
+					} catch (e) {
+						console.error('storage groups init error', e);
+					}
+
+					// Liveblocks Storage -> 本地 state，保持雙向同步
+					// Liveblocks 儲存層變動同步回本地狀態，保持雙向一致
+					unsubscribeStorage = room.subscribe(storageRoot!, () => {
+						try {
+							if (localWriteInProgress) return; // 忽略來自本地寫入觸發的事件
+							const immutable = (storageRoot as LiveObject<LiveRoot>).toImmutable();
+							const groupsPlain = immutable.groups;
+							if (groupsPlain) {
+								const parsed = parseRemoteGroups(groupsPlain as unknown);
+								if (parsed.length > 0) {
+									// 強制建立新陣列以觸發 Svelte 反應性
+									groups = mergeRemoteWithLocal(parsed);
+									// 觸發 UI 更新
+									groups = [...groups];
+								}
+								if (!groups.find((g) => g.id === activeGroupId)) {
+									activeGroupId = groups[0]?.id || initialGroup.id;
+								}
+							}
+						} catch (e) {
+							console.error('storage subscribe error', e);
+						}
+					});
+				} catch (e) {
+					console.error('init storage error', e);
+				}
 			}
 		})();
 
@@ -843,6 +951,8 @@
 			// clear weekly timers
 			if (weeklyRefreshTimeout) clearTimeout(weeklyRefreshTimeout);
 			if (weeklyRefreshInterval) clearInterval(weeklyRefreshInterval);
+			// clear login check interval
+			if (loginCheckInterval) clearInterval(loginCheckInterval);
 		};
 	});
 
@@ -1102,38 +1212,106 @@
 		}
 	}
 
+	// Check if gameId is in admin whitelist
+	async function checkIfAdmin() {
+		if (!browser || !gameId.trim()) {
+			showPasswordField = false;
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/check-admin', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ gameId: gameId.trim() })
+			});
+
+			const result = await response.json();
+			showPasswordField = !!result.isAdmin;
+		} catch (e) {
+			console.error('checkIfAdmin error', e);
+			showPasswordField = false;
+		}
+	}
+
 	// 重置登入狀態，並將未寫入的 pending 更新刷入 changelog
 	function logout() {
-		isLoggedIn = false;
-		isAdmin = false;
-		joinedAt = 0;
-
 		// 提交所有未提交的更新
 		pendingUpdates.forEach((pending, key) => {
 			clearTimeout(pending.timeout);
 			commitPendingUpdate(key);
 		});
 
+		// 離開 Liveblocks 房間釋放連線
+		try {
+			if (leave) {
+				leave();
+				room = null;
+				leave = null;
+			}
+		} catch (e) {
+			console.error('logout leave room error', e);
+		}
+
+		isLoggedIn = false;
+		isAdmin = false;
+		joinedAt = 0;
 		gameId = '';
 		uid = '';
 		groups = [createEmptyGroup()];
 		activeGroupId = groups[0].id;
 		pendingUpdates.clear();
+		storageInitialized = false;
+		storageRoot = null;
 	}
 
 	// 嘗試將本地使用者資訊寫入 presence
 	function updateMyPresence() {
 		try {
 			if (!room) return;
-			// room.updatePresence 接受任意物件；我們放入 name 與 isAdmin 與 lastActive
-			room.updatePresence({ name: gameId || '', isAdmin: !!isAdmin, lastActive: Date.now() });
+			// room.updatePresence 接受任意物件；我們放入 name 與 isAdmin 與 lastActive 與 editingField
+			room.updatePresence({
+				name: gameId || '',
+				isAdmin: !!isAdmin,
+				lastActive: Date.now(),
+				editingField: myEditingField
+			});
 		} catch (e) {
 			console.error('updateMyPresence error', e);
 		}
 	}
 
+	// 開始編輯欄位
+	function startEditingField(fieldKey: string) {
+		myEditingField = fieldKey;
+		updateMyPresence();
+	}
+
+	// 結束編輯欄位
+	function stopEditingField() {
+		myEditingField = null;
+		updateMyPresence();
+	}
+
+	// 檢查欄位是否被其他人鎖定
+	function isFieldLocked(fieldKey: string): { locked: boolean; user?: string } {
+		const lock = fieldLocks[fieldKey];
+		if (!lock) return { locked: false };
+
+		// 檢查鎖定是否過期（超過 30 秒）
+		const now = Date.now();
+		if (now - lock.timestamp > 30000) {
+			// 清理過期鎖定
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			const { [fieldKey]: _, ...rest } = fieldLocks;
+			fieldLocks = rest;
+			return { locked: false };
+		}
+		return { locked: true, user: lock.user };
+	}
+
 	// 管理員將玩家踢出：把名稱加入 shared `kicked` 清單（由 client 端檢查並自動離開）
-	/* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+	 
 	function adminKick(targetName: string) {
 		if (!isAdmin) return;
 		if (!storageInitialized || !storageRoot) {
@@ -1435,7 +1613,11 @@
 						checked: lm.checked
 					} as typeof m;
 				}
-				return m;
+				// 未鎖定的成員：完全使用遠端值，但保留 checked 狀態
+				return {
+					...m,
+					checked: lm?.checked || false
+				} as typeof m;
 			});
 			out.push({ ...rg, members: mergedMembers });
 		}
@@ -1445,6 +1627,11 @@
 	function isGroupReadOnly(g: LocalGroup | undefined) {
 		if (!g) return false;
 		return g.status === '已準備' || g.status === '已出團';
+	}
+
+	function canToggleMemberCheck(g: LocalGroup | undefined) {
+		if (!g) return false;
+		return g.status === '已準備';
 	}
 
 	function updateGroupDate(groupId: string, value: string) {
@@ -1558,7 +1745,7 @@
 	}
 
 	// 本頁的主題值（由 ThemeToggle 綁定）
-	let themeValue: 'light' | 'dark' = 'light';
+	let themeValue = $state<'light' | 'dark'>('light');
 </script>
 
 <svelte:head>
@@ -1591,21 +1778,26 @@
 						placeholder="請輸入您的遊戲暱稱"
 						name="gameId"
 						value={gameId}
-						oninput={(e) => (gameId = (e.target as HTMLInputElement).value)}
+						oninput={(e) => {
+							gameId = (e.target as HTMLInputElement).value;
+							checkIfAdmin();
+						}}
 					/>
 				</label>
 
-				<label class="login-label">
-					<span class="login-label-text">密碼</span>
-					<input
-						type="password"
-						class="login-input"
-						placeholder="選填，輸入後以管理員模式登入"
-						name="uid"
-						value={uid}
-						oninput={(e) => (uid = (e.target as HTMLInputElement).value)}
-					/>
-				</label>
+				{#if showPasswordField}
+					<label class="login-label">
+						<span class="login-label-text">密碼</span>
+						<input
+							type="password"
+							class="login-input"
+							placeholder="選填，輸入後以管理員模式登入"
+							name="uid"
+							value={uid}
+							oninput={(e) => (uid = (e.target as HTMLInputElement).value)}
+						/>
+					</label>
+				{/if}
 
 				<button type="submit" class="login-button" disabled={isLoading}>
 					{#if isLoading}
@@ -1646,30 +1838,19 @@
 					{/if}
 				</ul>
 				<div class="nav-actions">
-					{#if othersCount > 0}
-						<button
-							class="online-badge inline-online"
-							type="button"
-							aria-expanded={showOnlineNames}
-							onclick={toggleShowOnlineNames}
-						>
-							<span class="online-count">在線：{othersCount}</span>
-							<span class="chev" aria-hidden={showOnlineNames ? 'false' : 'true'}
-								>{showOnlineNames ? '▾' : '▸'}</span
-							>
-						</button>
-					{:else}
-						<span class="online-badge sr-only">無其他使用者</span>
-					{/if}
-					<span
+					<button
 						class="nav-user"
-						title={gameId || '訪客'}
 						class:admin={isAdmin}
 						class:player={!isAdmin}
+						onclick={toggleShowOnlineNames}
+						title={isAdmin ? '點擊查看在線使用者' : `在線人數：${othersCount + 1}`}
 						aria-label={isAdmin ? '管理員' : '一般玩家'}
 					>
-						{gameId || '訪客'}
-					</span>
+						<span class="user-name">{gameId || '訪客'}</span>
+						{#if othersCount > 0}
+							<span class="online-count-badge">{othersCount + 1}</span>
+						{/if}
+					</button>
 					<button class="nav-logout" onclick={logout}>登出</button>
 					<ThemeToggle bind:theme={themeValue} />
 				</div>
@@ -1695,6 +1876,61 @@
 							執行清空
 						</button>
 						<button class="btn" onclick={() => (pendingImmediateClear = false)}>取消</button>
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		{#if showOnlineNames}
+			<div
+				class="modal-backdrop"
+				role="dialog"
+				aria-modal="true"
+				tabindex="-1"
+				onclick={() => (showOnlineNames = false)}
+				onkeydown={(e) => {
+					if (e.key === 'Escape') showOnlineNames = false;
+				}}
+			>
+				<div
+					class="modal online-users-modal"
+					role="document"
+					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => e.stopPropagation()}
+				>
+					<h3>在線使用者 ({othersCount + 1})</h3>
+					{#if isAdmin}
+						<div class="online-users-list">
+							<div class="online-user-item current-user">
+								<span class="user-name">{gameId || '訪客'}</span>
+								<span class="user-badge admin-badge">管理員（你）</span>
+							</div>
+							{#each othersList as other (other.connectionId || other.id || other.name)}
+								<div class="online-user-item">
+									<span class="user-name">{other.name}</span>
+									{#if other.isAdmin}
+										<span class="user-badge admin-badge">管理員</span>
+									{:else}
+										<span class="user-badge player-badge">玩家</span>
+										<button
+											class="btn btn-sm btn-kick"
+											onclick={() => adminKick(other.name)}
+											title="請此玩家離開房間"
+										>
+											請離
+										</button>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{:else}
+						<p class="online-users-info">
+							目前有 {othersCount + 1} 位使用者在線
+						</p>
+						<p class="online-users-note">僅管理員可查看詳細名單</p>
+					{/if}
+					<div class="modal-actions">
+						<button class="btn" onclick={() => (showOnlineNames = false)}>關閉</button>
 					</div>
 				</div>
 			</div>
@@ -1726,7 +1962,6 @@
 									class:done={group.status === '已出團'}
 									onclick={() => (activeGroupId = group.id)}
 								>
-									<span class="tab-label">團隊</span>
 									<span class="tab-num">{idx + 1}</span>
 									{#if activeTab === 'forms' && groups.length > 1 && isAdmin}
 										{#if group.status !== '已準備'}
@@ -1897,25 +2132,39 @@
 								<label class="departure-label">
 									<input
 										class="departure-input departure-date"
+										class:field-locked={isFieldLocked(`${activeGroupId}-departureDate`).locked}
 										type="date"
 										aria-label="開團日期"
+										title={isFieldLocked(`${activeGroupId}-departureDate`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-departureDate`).user} 正在編輯`
+											: '開團日期'}
 										name="departureDate"
 										value={getActiveGroup().departureDate ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-departureDate`)}
+										onblur={() => stopEditingField()}
 										onchange={(e) =>
 											updateGroupDate(activeGroupId, (e.target as HTMLInputElement).value)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-departureDate`).locked}
 									/>
 								</label>
 								<label class="departure-label">
 									<input
 										class="departure-input departure-time"
+										class:field-locked={isFieldLocked(`${activeGroupId}-departureTime`).locked}
 										type="time"
 										aria-label="開團時間"
+										title={isFieldLocked(`${activeGroupId}-departureTime`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-departureTime`).user} 正在編輯`
+											: '開團時間'}
 										name="departureTime"
 										value={getActiveGroup().departureTime ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-departureTime`)}
+										onblur={() => stopEditingField()}
 										onchange={(e) =>
 											updateGroupTime(activeGroupId, (e.target as HTMLInputElement).value)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-departureTime`).locked}
 									/>
 								</label>
 								<div class="departure-weekday">
@@ -1934,11 +2183,16 @@
 								<label class="departure-label">
 									<input
 										class="departure-input dungeon-name"
+										class:field-locked={isFieldLocked(`${activeGroupId}-dungeonName`).locked}
 										type="text"
 										aria-label="副本名稱"
-										placeholder="副本名稱"
+										placeholder={isFieldLocked(`${activeGroupId}-dungeonName`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-dungeonName`).user} 正在編輯`
+											: '副本名稱'}
 										name="dungeonName"
 										value={getActiveGroup().dungeonName ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-dungeonName`)}
+										onblur={() => stopEditingField()}
 										oninput={(e) =>
 											updateGroupField(
 												activeGroupId,
@@ -1946,22 +2200,29 @@
 												'dungeonName',
 												(e.target as HTMLInputElement).value
 											)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-dungeonName`).locked}
 									/>
 								</label>
 								<label class="departure-label">
 									<input
 										class="departure-input level"
+										class:field-locked={isFieldLocked(`${activeGroupId}-level`).locked}
 										type="number"
 										min="0"
 										max="100"
 										style="width:5.5rem; max-width:100%"
 										aria-label="等級"
-										placeholder="等級"
+										placeholder={isFieldLocked(`${activeGroupId}-level`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-level`).user} 正在編輯`
+											: '等級'}
 										name="level"
 										value={getActiveGroup().level ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-level`)}
+										onblur={() => stopEditingField()}
 										oninput={(e) => clampLevelInput(e, activeGroupId)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-level`).locked}
 									/>
 									{#if String(getActiveGroup().level ?? '') !== '' && Number(getActiveGroup().level) > 100}
 										<div class="field-error">等級上限為 100</div>
@@ -1970,13 +2231,19 @@
 								<label class="departure-label">
 									<input
 										class="departure-input gear-score-req"
+										class:field-locked={isFieldLocked(`${activeGroupId}-gearScoreReq`).locked}
 										type="text"
 										aria-label="裝分限制"
-										placeholder="裝分限制"
+										placeholder={isFieldLocked(`${activeGroupId}-gearScoreReq`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-gearScoreReq`).user} 正在編輯`
+											: '裝分限制'}
 										name="gearScoreReq"
 										value={getActiveGroup().gearScoreReq ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-gearScoreReq`)}
+										onblur={() => stopEditingField()}
 										oninput={(e) => clampGearScoreReqInput(e, activeGroupId)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-gearScoreReq`).locked}
 									/>
 								</label>
 
@@ -1986,11 +2253,18 @@
 										class:recruit={getActiveGroup().status === '招募中'}
 										class:ready={getActiveGroup().status === '已準備'}
 										class:done={getActiveGroup().status === '已出團'}
+										class:field-locked={isFieldLocked(`${activeGroupId}-status`).locked}
 										aria-label="團隊狀態"
+										title={isFieldLocked(`${activeGroupId}-status`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-status`).user} 正在編輯`
+											: '團隊狀態'}
 										value={getActiveGroup().status ?? '招募中'}
+										onfocus={() => startEditingField(`${activeGroupId}-status`)}
+										onblur={() => stopEditingField()}
 										onchange={(e) =>
 											updateGroupStatus(activeGroupId, (e.target as HTMLSelectElement).value)}
 										class:readonly-active={isGroupReadOnly(getActiveGroup())}
+										disabled={isFieldLocked(`${activeGroupId}-status`).locked}
 									>
 										<option value="招募中">招募中</option>
 										<option value="已準備">已準備</option>
@@ -2062,7 +2336,7 @@
 													title="清點"
 													onclick={() =>
 														updateGroupField(activeGroupId, index, 'checked', !member.checked)}
-													disabled={isGroupReadOnly(getActiveGroup())}
+													disabled={!canToggleMemberCheck(getActiveGroup())}
 												>
 													{#if member.checked}
 														✓
@@ -2077,12 +2351,14 @@
 													<div class="field-control">
 														<ProfessionSelect
 															value={member.profession}
-															on:change={(e) =>
-																updateGroupField(activeGroupId, index, 'profession', e.detail)}
-															disabled={isGroupReadOnly(getActiveGroup())}
+															on:change={(e) => {
+																stopEditingField();
+																updateGroupField(activeGroupId, index, 'profession', e.detail);
+															}}
+															disabled={isGroupReadOnly(getActiveGroup()) ||
+																isFieldLocked(`${activeGroupId}-${index}-profession`).locked}
 														/>
 													</div>
-
 													<style>
 														/* Stack label and control for profession field only */
 														.stacked .label-text {
@@ -2108,9 +2384,13 @@
 													<span class="label-text">玩家暱稱</span>
 													<input
 														type="text"
-														placeholder="遊戲暱稱"
+														placeholder={isFieldLocked(`${activeGroupId}-${index}-playerId`).locked
+															? `🔒 ${isFieldLocked(`${activeGroupId}-${index}-playerId`).user} 正在編輯`
+															: '遊戲暱稱'}
 														name={'member-' + index + '-playerId'}
 														value={member.playerId}
+														onfocus={() => startEditingField(`${activeGroupId}-${index}-playerId`)}
+														onblur={() => stopEditingField()}
 														oninput={(e) =>
 															updateGroupField(
 																activeGroupId,
@@ -2118,7 +2398,10 @@
 																'playerId',
 																(e.target as HTMLInputElement).value
 															)}
-														disabled={isGroupReadOnly(getActiveGroup())}
+														disabled={isGroupReadOnly(getActiveGroup()) ||
+															isFieldLocked(`${activeGroupId}-${index}-playerId`).locked}
+														class:field-locked={isFieldLocked(`${activeGroupId}-${index}-playerId`)
+															.locked}
 													/>
 												</label>
 											</div>
@@ -2131,11 +2414,18 @@
 														type="number"
 														min="0"
 														max="99999"
-														placeholder="0"
+														placeholder={isFieldLocked(`${activeGroupId}-${index}-gearScore`).locked
+															? `🔒 ${isFieldLocked(`${activeGroupId}-${index}-gearScore`).user} 正在編輯`
+															: '0'}
 														name={'member-' + index + '-gearScore'}
 														value={member.gearScore}
+														onfocus={() => startEditingField(`${activeGroupId}-${index}-gearScore`)}
+														onblur={() => stopEditingField()}
 														oninput={(e) => clampMemberGearScoreInput(e, activeGroupId, index)}
-														disabled={isGroupReadOnly(getActiveGroup())}
+														disabled={isGroupReadOnly(getActiveGroup()) ||
+															isFieldLocked(`${activeGroupId}-${index}-gearScore`).locked}
+														class:field-locked={isFieldLocked(`${activeGroupId}-${index}-gearScore`)
+															.locked}
 													/>
 													{#if String(member.gearScore ?? '') !== '' && Number(member.gearScore) > 99999}
 														<div class="field-error">裝分上限為 99,999</div>
@@ -2152,8 +2442,13 @@
 								<label class="notes-label">
 									<textarea
 										class="notes-input"
-										placeholder="備註（可留放置攻略連結）"
+										class:field-locked={isFieldLocked(`${activeGroupId}-notes`).locked}
+										placeholder={isFieldLocked(`${activeGroupId}-notes`).locked
+											? `🔒 ${isFieldLocked(`${activeGroupId}-notes`).user} 正在編輯`
+											: '備註（可留放置攻略連結）'}
 										value={getActiveGroup().notes ?? ''}
+										onfocus={() => startEditingField(`${activeGroupId}-notes`)}
+										onblur={() => stopEditingField()}
 										oninput={(e) =>
 											updateGroupField(
 												activeGroupId,
@@ -2161,7 +2456,8 @@
 												'notes',
 												(e.target as HTMLTextAreaElement).value
 											)}
-										disabled={isGroupReadOnly(getActiveGroup())}
+										disabled={isGroupReadOnly(getActiveGroup()) ||
+											isFieldLocked(`${activeGroupId}-notes`).locked}
 									></textarea>
 								</label>
 							</div>
@@ -2241,6 +2537,7 @@
 		background: rgba(0, 0, 0, 0.45);
 		z-index: 1000;
 		padding: 1rem;
+		cursor: pointer;
 	}
 
 	.modal {
@@ -2251,11 +2548,80 @@
 		width: min(96%, 520px);
 		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 		border: 1px solid rgba(0, 0, 0, 0.06);
+		cursor: auto;
+		pointer-events: all;
 	}
 
 	.modal h3 {
 		margin: 0 0 0.35rem 0;
 		font-size: 1.05rem;
+	}
+
+	/* 在線使用者彈窗樣式 */
+	.online-users-modal {
+		max-width: 400px;
+	}
+
+	.online-users-list {
+		margin: 1rem 0;
+		max-height: 300px;
+		overflow-y: auto;
+	}
+
+	.online-user-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.6rem 0.8rem;
+		border-radius: 6px;
+		margin-bottom: 0.4rem;
+		background: #1f2937;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.online-user-item.current-user {
+		background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+		border-color: rgba(59, 130, 246, 0.3);
+	}
+
+	.online-user-item .user-name {
+		font-weight: 600;
+		color: var(--text, #111);
+	}
+
+	.user-badge {
+		padding: 0.2rem 0.6rem;
+		border-radius: 12px;
+		font-size: 0.75rem;
+		font-weight: 600;
+	}
+
+	.admin-badge {
+		background: linear-gradient(135deg, #fbbf24, #f59e0b);
+		color: #78350f;
+	}
+
+	.player-badge {
+		background: linear-gradient(135deg, #60a5fa, #3b82f6);
+		color: #1e3a8a;
+	}
+
+	.online-users-info {
+		margin: 1rem 0;
+		padding: 1rem;
+		background: #1f2937;
+		border-radius: 8px;
+		text-align: center;
+		font-size: 1.05rem;
+		font-weight: 600;
+		color: var(--text, #111);
+	}
+
+	.online-users-note {
+		margin: 0.5rem 0 0 0;
+		text-align: center;
+		font-size: 0.85rem;
+		color: #666;
 	}
 
 	.modal p {
@@ -2298,6 +2664,22 @@
 
 	.btn-danger:hover {
 		filter: brightness(0.95);
+	}
+
+	/* 欄位鎖定樣式 - 斜紋背景 */
+	input.field-locked,
+	select.field-locked,
+	textarea.field-locked {
+		background: repeating-linear-gradient(
+			45deg,
+			rgba(255, 193, 7, 0.05),
+			rgba(255, 193, 7, 0.05) 10px,
+			rgba(255, 152, 0, 0.05) 10px,
+			rgba(255, 152, 0, 0.05) 20px
+		);
+		cursor: not-allowed;
+		opacity: 0.7;
+		border-color: rgba(255, 193, 7, 0.5);
 	}
 
 	/* small responsive tweaks */

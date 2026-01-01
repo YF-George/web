@@ -7,11 +7,10 @@
 
 	function applyTheme(t: 'light' | 'dark') {
 		if (!browser) return;
-		if (t === 'dark') {
-			document.documentElement.dataset.theme = 'dark';
-		} else {
-			delete document.documentElement.dataset.theme;
-		}
+		const root = document.documentElement;
+		root.dataset.theme = t;
+		root.classList.toggle('dark', t === 'dark'); // Tailwind manual dark mode class
+		root.style.colorScheme = t;
 	}
 
 	onMount(() => {
